@@ -3,14 +3,16 @@ Created on Dec 8, 2015
 
 @author: donghyun
 '''
-
+'''
+atlas90
+'''
 import os
 import time
 
 from util import eval_RMSE
 import math
 import numpy as np
-from text_analysis.models import CNN_module
+from text_analysis.model import CNN_module
 
 
 def ConvMF(res_dir, train_user, train_item, valid_user, test_user,
@@ -19,7 +21,7 @@ def ConvMF(res_dir, train_user, train_item, valid_user, test_user,
            dropout_rate=0.2, emb_dim=200, max_len=300, num_kernel_per_ws=100):
     # explicit setting
     a = 1
-    b = 0
+    b = 0.01
 
     num_user = R.shape[0]
     num_item = R.shape[1]

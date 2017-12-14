@@ -101,18 +101,18 @@ class Data_Factory():
 
     def split_data(self, ratio, R):
         print "Randomly splitting rating data into training set (%.1f) and test set (%.1f)..." % (1 - ratio, ratio)
-        train = []
-        for i in xrange(R.shape[0]):
+        train = [] # make sure all users appear in the train set
+        for i in xrange(R.shape[0]): # for each user, add the first item that he has rated, the resulted train list size is num_users
             user_rating = R[i].nonzero()[1]
             np.random.shuffle(user_rating)
             train.append((i, user_rating[0]))
 
-        remain_item = set(xrange(R.shape[1])) - set(zip(*train)[1])
-
-        for j in remain_item:
+        remain_item = set(xrange(R.shape[1])) - set(zip(*train)[1]) # get the item idx that haven't appeared in train.
+        # make sure all items appear in the train set
+        for j in remain_item: #for each item in remain_item, get the list of users who rated this item, and add the if of the first user
             item_rating = R.tocsc().T[j].nonzero()[1]
             np.random.shuffle(item_rating)
-            train.append((item_rating[0], j))
+            train.append((item_rating[0], j))# the resulted list is of size num_user + len(remain_item)
 
         rating_list = set(zip(R.nonzero()[0], R.nonzero()[1]))
         total_size = len(rating_list)
@@ -378,6 +378,8 @@ class Data_Factory():
         for line in all_line:
             tmp = line.split('::')
             u = tmp[0]
+            # if u == '215':
+            #     print u
             if u not in tmp_user:
                 continue
             i = tmp[1]
@@ -401,6 +403,8 @@ class Data_Factory():
                 user.append(u_idx)
                 item.append(i_idx)
                 rating.append(float(tmp[2]))
+            else:
+                print '%s %s' % (u,i)
 
         raw_ratings.close()
 
