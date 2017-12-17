@@ -6,6 +6,7 @@ Created on Nov 9, 2015
 
 import os
 import sys
+import csv
 import cPickle as pickl
 import numpy as np
 
@@ -98,6 +99,43 @@ class Data_Factory():
         print "%d words exist in the given pretrained model" % count
 
         return W
+    def read_attributes(self, path):
+        """
+            Parse papers' features
+        """
+        if not os.path.isfile(path):
+            print "Path (paper_info) is wrong!"
+            sys.exit()
+        else:
+            with open(path, "r") as f:
+                reader = csv.reader(f, delimiter='\t')
+                first_line = True
+                feature_vec = []
+                i = 0
+                row_length = 0
+                labels_ids = []
+                for line in reader:
+                    if first_line:
+                        labels = ['pages', 'year', 'type_NaN', 'type_article',
+                                  'type_book', 'type_booklet', 'type_electronic', 'type_inbook',
+                                  'type_incollection', 'type_inproceedings', 'type_manual',
+                                  'type_mastersthesis', 'type_misc', 'type_phdthesis', 'type_proceedings',
+                                  'type_techreport', 'type_unpublished']
+
+                        for j, entry in enumerate(line):
+                            if entry in labels:
+                                labels_ids.append(j)
+                        row_length = len(labels_ids)
+                        first_line = False
+                        i += 1
+                        continue
+                    paper_id = line[0]
+                    current_entry = []
+                    for label_id in labels_ids:
+                        current_entry.append(float(line[label_id]))
+                    feature_vec.append(current_entry)
+                    i += 1
+            return labels, np.asarray(feature_vec)
 
     def split_data(self, ratio, R):
         print "Randomly splitting rating data into training set (%.1f) and test set (%.1f)..." % (1 - ratio, ratio)

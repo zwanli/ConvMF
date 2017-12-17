@@ -51,6 +51,8 @@ parser.add_argument("-n", "--max_iter", type=int,
                     help="Value of max iteration (default: 200)", default=200)
 parser.add_argument("-w", "--num_kernel_per_ws", type=int,
                     help="Number of kernels per window size for CNN module (default: 100)", default=100)
+parser.add_argument("--content_mode", type=str, choices=['cnn','cnn_cae'],
+                    help="Content to be used, CNN: textual content, CAE: auxiliary item features", default='cnn')
 
 args = parser.parse_args()
 do_preprocess = args.do_preprocess
@@ -96,6 +98,7 @@ else:
     max_iter = args.max_iter
     num_kernel_per_ws = args.num_kernel_per_ws
     give_item_weight = args.give_item_weight
+    content_mode = args.content_mode
 
     if res_dir is None:
         sys.exit("Argument missing - res_dir is required")
@@ -111,12 +114,14 @@ else:
     print "\tpretrained w2v data path - %s" % pretrain_w2v
     print "\tdimension: %d\n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tmax_iter: %d\n\tnum_kernel_per_ws: %d" \
         % (dimension, lambda_u, lambda_v, max_iter, num_kernel_per_ws)
+    print "\tContent: %s" %('Text and item attributes' if content_mode =='cnn_cae' else 'Text')
     print "==========================================================================================="
 
     R, D_all = data_factory.load(aux_path)
     CNN_X = D_all['X_sequence']
     vocab_size = len(D_all['X_vocab']) + 1
 
+    from models import ConvCAEMF
     from models import ConvMF
 
     if pretrain_w2v is None:
@@ -130,6 +135,15 @@ else:
     valid_user = data_factory.read_rating(data_path + '/valid_user.dat')
     test_user = data_factory.read_rating(data_path + '/test_user.dat')
 
-    ConvMF(max_iter=max_iter, res_dir=res_dir,
-           lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W, give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
-           train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
+    if content_mode == 'cnn_cae':
+        # Read item's attributes
+        labels, features_matrix= data_factory.read_attributes(aux_path + '/paper_attributes.csv')
+
+        ConvCAEMF(max_iter=max_iter, res_dir=res_dir,
+                  lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W, give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
+                  train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R, attributes_X=features_matrix)
+    elif content_mode == 'cnn':
+        ConvMF(max_iter=max_iter, res_dir=res_dir,
+                  lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
+                  give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
+                  train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
