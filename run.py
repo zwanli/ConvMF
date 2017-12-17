@@ -5,6 +5,7 @@ Created on Dec 9, 2015
 '''
 import argparse
 import sys
+import os
 from data_manager import Data_Factory
 
 parser = argparse.ArgumentParser()
@@ -92,6 +93,8 @@ else:
     res_dir = args.res_dir
     emb_dim = args.emb_dim
     pretrain_w2v = args.pretrain_w2v
+    max_length = args.max_length_document
+
     dimension = args.dimension
     lambda_u = args.lambda_u
     lambda_v = args.lambda_v
@@ -102,6 +105,11 @@ else:
 
     if res_dir is None:
         sys.exit("Argument missing - res_dir is required")
+    else:
+        res_dir = os.path.join(res_dir, '%.5f-%.5f-%d-%s' % (lambda_u, lambda_v,max_length,
+                                                               'cnn_cae' if content_mode == 'cnn_cae' else 'cnn'))
+        if not os.path.exists(res_dir):
+            os.makedirs(res_dir)
     if lambda_u is None:
         sys.exit("Argument missing - lambda_u is required")
     if lambda_v is None:

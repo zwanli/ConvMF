@@ -107,6 +107,7 @@ class Data_Factory():
             print "Path (paper_info) is wrong!"
             sys.exit()
         else:
+            print "Load preprocessed attributes data - %s" % (path)
             with open(path, "r") as f:
                 reader = csv.reader(f, delimiter='\t')
                 first_line = True

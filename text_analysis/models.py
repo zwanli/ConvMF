@@ -19,7 +19,9 @@ from keras.layers import Input, Embedding, Dense, concatenate
 from keras.models import Model, Sequential
 from keras.preprocessing import sequence
 import keras.backend as K
-from keras.utils import plot_model
+
+
+# from keras.utils import plot_model
 
 
 class CNN_CAE_module():
@@ -119,10 +121,10 @@ class CNN_CAE_module():
         # Output Layergit
         model = Model(inputs=[doc_input, att_input], outputs=[projection, att_output])
         model.compile(optimizer='rmsprop',
-            #optimizer={'joint_output': 'rmsprop', 'cae_output':  'adam'},
-                      loss={'joint_output': 'mse', 'cae_output':contractive_loss},
+                      # optimizer={'joint_output': 'rmsprop', 'cae_output':  'adam'},
+                      loss={'joint_output': 'mse', 'cae_output': contractive_loss},
                       loss_weights={'joint_output': 1., 'cae_output': 1.})
-        plot_model(model, to_file='model.png')
+        # plot_model(model, to_file='model.png')
 
         self.model = model
 
@@ -200,14 +202,19 @@ class CNN_CAE_module():
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
         np.random.seed(seed)
         X_train = np.random.permutation(X_train)
+
         np.random.seed(seed)
         V = np.random.permutation(V)
+
         np.random.seed(seed)
         item_weight = np.random.permutation(item_weight)
 
+        np.random.seed(seed)
+        att_train = np.random.permutation(att_train)
+
         print("Train...CNN module")
-        history = self.model.fit({'doc_input':X_train, 'cae_input': att_train },
-                                 {'joint_output':V, 'cae_output':att_train },
+        history = self.model.fit({'doc_input': X_train, 'cae_input': att_train},
+                                 {'joint_output': V, 'cae_output': att_train},
                                  verbose=0, batch_size=self.batch_size, epochs=self.nb_epoch,
                                  sample_weight={'joint_output': item_weight})
 
@@ -219,8 +226,10 @@ class CNN_CAE_module():
 
     def get_projection_layer(self, X_train, att_train):
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
+        # Y = self.model.predict(
+        #     {'doc_input': X_train, 'cae_input':att_train}, batch_size=len(X_train))
         Y = self.model.predict(
-            {'doc_input': X_train, 'cae_input':att_train}, batch_size=len(X_train))
+            {'doc_input': X_train, 'cae_input': att_train}, batch_size=1024)
         return Y[0]
 
 
@@ -249,14 +258,16 @@ class CNN_module():
         if init_W is None:
             # self.model.add_node(Embedding(
             #     max_features, emb_dim, input_length=max_len), name='sentence_embeddings', input='input')
-            sentence_embeddings = Embedding(output_dim=emb_dim, input_dim=max_features, input_length=max_len, name='sentence_embeddings')(doc_input)
+            sentence_embeddings = Embedding(output_dim=emb_dim, input_dim=max_features, input_length=max_len,
+                                            name='sentence_embeddings')(doc_input)
         else:
             # self.model.add_node(Embedding(max_features, emb_dim, input_length=max_len, weights=[
             #                     init_W / 20]), name='sentence_embeddings', input='input')
-            sentence_embeddings = Embedding(output_dim=emb_dim, input_dim=max_features, input_length=max_len, weights=[init_W / 20], name='sentence_embeddings')(doc_input)
+            sentence_embeddings = Embedding(output_dim=emb_dim, input_dim=max_features, input_length=max_len,
+                                            weights=[init_W / 20], name='sentence_embeddings')(doc_input)
 
         '''Reshape Layer'''
-        reshape = Reshape(target_shape=(max_len, emb_dim, 1), name='reshape')(sentence_embeddings) # chanels last
+        reshape = Reshape(target_shape=(max_len, emb_dim, 1), name='reshape')(sentence_embeddings)  # chanels last
 
         '''Convolution Layer & Max Pooling Layer'''
         flatten_ = []
@@ -265,7 +276,7 @@ class CNN_module():
             # model_internal.add(Convolution2D(
             #     nb_filters, i, emb_dim, activation="relu"))
             model_internal.add(Conv2D(nb_filters, (i, emb_dim), activation="relu",
-                               name='conv2d_' + str(i), input_shape=(self.max_len, emb_dim, 1)))
+                                      name='conv2d_' + str(i), input_shape=(self.max_len, emb_dim, 1)))
             # model_internal.add(MaxPooling2D(
             #     pool_size=(self.max_len - i + 1, 1)))
             model_internal.add(MaxPooling2D(pool_size=(self.max_len - i + 1, 1), name='maxpool2d_' + str(i)))
@@ -285,7 +296,7 @@ class CNN_module():
         '''Projection Layer & Output Layer'''
         # self.model.add_node(Dense(projection_dimension, activation='tanh'),
         #                     name='projection', input='dropout')
-        pj = Dense(projection_dimension, activation='tanh', name='output') # output layer
+        pj = Dense(projection_dimension, activation='tanh', name='output')  # output layer
         projection = pj(dropout)
 
         # Output Layergit
@@ -299,7 +310,6 @@ class CNN_module():
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
 
-
     def train(self, X_train, V, item_weight, seed):
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
         np.random.seed(seed)
@@ -310,8 +320,8 @@ class CNN_module():
         item_weight = np.random.permutation(item_weight)
 
         print("Train...CNN module")
-        history = self.model.fit(X_train,V,
-                                 verbose=0, batch_size=self.batch_size, nb_epoch=self.nb_epoch,
+        history = self.model.fit(X_train, V,
+                                 verbose=0, batch_size=self.batch_size, epochs=self.nb_epoch,
                                  sample_weight={'output': item_weight})
 
         # cnn_loss_his = history.history['loss']
@@ -322,6 +332,8 @@ class CNN_module():
 
     def get_projection_layer(self, X_train):
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
+        # Y = self.model.predict(
+        #     {'doc_input': X_train}, batch_size=len(X_train))
         Y = self.model.predict(
-            {'doc_input': X_train}, batch_size=len(X_train))
+            {'doc_input': X_train}, batch_size=1024)
         return Y

@@ -226,7 +226,7 @@ def main():
         dataset_folder = os.path.join(args.data_dir ,'citeulike_a_extended')
 
     ratings_path = os.path.join(dataset_folder,'users.dat')
-    ratings_outfile =  os.path.join(dataset_folder,'ratings.txt')
+    ratings_outfile = os.path.join(dataset_folder,'ratings.txt')
     convert_ratings(ratings_path, ratings_outfile)
 
     abstracts_path = os.path.join(dataset_folder, 'raw-data.csv')
