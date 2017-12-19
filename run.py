@@ -6,6 +6,8 @@ Created on Dec 9, 2015
 import argparse
 import sys
 import os
+import glob
+
 from data_manager import Data_Factory
 
 parser = argparse.ArgumentParser()
@@ -31,6 +33,8 @@ parser.add_argument("-t", "--split_ratio", type=float,
 # Option for pre-processing data and running ConvMF
 parser.add_argument("-d", "--data_path", type=str,
                     help="Path to training, valid and test data sets")
+parser.add_argument("--folds_path", type=str,
+                    help="Path to generated folds directory")
 parser.add_argument("-a", "--aux_path", type=str, help="Path to R, D_all sets")
 
 # Option for running ConvMF
@@ -74,21 +78,24 @@ if do_preprocess:
     max_df = args.max_df
     vocab_size = args.vocab_size
     split_ratio = args.split_ratio
-
+    folds_path = args.folds_path
     print "=================================Preprocess Option Setting================================="
     print "\tsaving preprocessed aux path - %s" % aux_path
     print "\tsaving preprocessed data path - %s" % data_path
     print "\trating data path - %s" % path_rating
     print "\tdocument data path - %s" % path_itemtext
-    print "\tmin_rating: %d\n\tmax_length_document: %d\n\tmax_df: %.1f\n\tvocab_size: %d\n\tsplit_ratio: %.1f" \
-        % (min_rating, max_length, max_df, vocab_size, split_ratio)
+    print "\tmin_rating: %d\n\tmax_length_document: %d\n\tmax_df: %.1f\n\tvocab_size: %d" \
+        % (min_rating, max_length, max_df, vocab_size)
+    print "\t{}".format("split_ratio: %.1f" %split_ratio if folds_path is None else "Splits: using pre-generated folds")
     print "==========================================================================================="
 
     R, D_all = data_factory.preprocess(
         path_rating, path_itemtext, min_rating, max_length, max_df, vocab_size)
     data_factory.save(aux_path, R, D_all)
-    data_factory.generate_train_valid_test_file_from_R(
-        data_path, R, split_ratio)
+    #Read training, test, and valid sets from the generated folds
+    # data_factory.generate_train_valid_test_file_from_R(
+    #     data_path, R, split_ratio)
+    data_factory.generate_train_valid_test_from_ctr_split(folds_path, data_path )
 else:
     res_dir = args.res_dir
     emb_dim = args.emb_dim
@@ -138,10 +145,10 @@ else:
         init_W = data_factory.read_pretrained_word2vec(
             pretrain_w2v, D_all['X_vocab'], emb_dim)
 
-    train_user = data_factory.read_rating(data_path + '/train_user.dat')
-    train_item = data_factory.read_rating(data_path + '/train_item.dat')
-    valid_user = data_factory.read_rating(data_path + '/valid_user.dat')
-    test_user = data_factory.read_rating(data_path + '/test_user.dat')
+    train_user = data_factory.read_rating(glob.glob(data_path + '/train-fold_*-users.dat')[0])
+    train_item = data_factory.read_rating(glob.glob(data_path + '/train-fold_*-items.dat')[0])
+    valid_user = data_factory.read_rating(glob.glob(data_path + '/validation-fold_*-users.dat')[0])
+    test_user = data_factory.read_rating(glob.glob(data_path + '/test-fold_*-users.dat')[0])
 
     if content_mode == 'cnn_cae':
         # Read item's attributes

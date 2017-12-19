@@ -9,6 +9,8 @@ import sys
 import csv
 import cPickle as pickl
 import numpy as np
+import glob
+import ntpath
 
 from operator import itemgetter
 from scipy.sparse.csr import csr_matrix
@@ -179,6 +181,9 @@ class Data_Factory():
         print "Finish constructing training set and test set"
         return train, valid, test
 
+    # def read_split_from_file(self, ):
+
+
     def generate_train_valid_test_file_from_R(self, path, R, ratio):
         '''
         Split randomly rating matrix into training set, valid set and test set with given ratio (valid+test)
@@ -337,6 +342,68 @@ class Data_Factory():
 
         f_text.write("\n".join(formatted_text))
         f_text.close()
+
+    def generate_train_valid_test_from_ctr_split(self, inpath, outpath):
+
+        if not os.path.exists(inpath):
+            print "Path (Splits) is wrong! \n %s " % inpath
+            sys.exit()
+        print "Read training, test, and valid sets from %s..." % inpath
+
+        print "Save training, test, and valid sets to %s..." % outpath
+        if not os.path.exists(outpath):
+            os.makedirs(outpath)
+
+        f_train_user_in = glob.glob(os.path.join(inpath, "train-fold_*-users.dat"))[0]
+        f_train_user_out = os.path.join(outpath, ntpath.basename(f_train_user_in))
+        self.convert_and_save(f_train_user_in, f_train_user_out)
+
+        f_valid_user_in = glob.glob(os.path.join(inpath, "validation-fold_*-users.dat"))[0]
+        f_valid_user_out = os.path.join(outpath, ntpath.basename(f_valid_user_in))
+        self.convert_and_save(f_valid_user_in, f_valid_user_out)
+
+
+        f_test_user_in = glob.glob(os.path.join(inpath, "test-fold_*-users.dat"))[0]
+        f_test_user_out = os.path.join(outpath, ntpath.basename(f_test_user_in))
+        self.convert_and_save(f_test_user_in, f_test_user_out)
+
+        f_train_item_in = glob.glob(os.path.join(inpath, "train-fold_*-items.dat"))[0]
+        f_train_item_out = os.path.join(outpath, ntpath.basename(f_train_item_in))
+        self.convert_and_save(f_train_item_in, f_train_item_out)
+
+        f_valid_item_in = glob.glob(os.path.join(inpath, "validation-fold_*-items.dat"))[0]
+        f_valid_item_out = os.path.join(outpath, ntpath.basename(f_valid_item_in))
+        self.convert_and_save(f_valid_item_in, f_valid_item_out)
+
+        f_test_item_in = glob.glob(os.path.join(inpath, "test-fold_*-items.dat"))[0]
+        f_test_item_out = os.path.join(outpath, ntpath.basename(f_test_item_in))
+        self.convert_and_save(f_test_item_in,f_test_item_out)
+
+
+
+
+    def convert_and_save(self, infile, outfile):
+        print('Reading ratings %s ...' %infile)
+
+        formatted_list =[]
+        with open(infile, 'r') as f:
+            with open(outfile, 'w') as of:
+                row_id = 0 # 0 base index
+                for line in f.readlines():
+                    row_length = int(line.split()[0])
+                    idx = map(int, line.split()[1:])
+                    if row_length > 0:
+                        if row_length != len(idx):
+                            print "Row length doesn't match the number elemets "
+                            sys.exit()
+                        formatted = [str(row_length)]
+                        formatted.extend(["%d:%.1f" % (i, 1.0)
+                                          for i in sorted(idx)])
+                        formatted_list.append(" ".join(formatted))
+                    else:
+                        formatted_list.append("0")
+                of.write("\n".join(formatted_list))
+        print('File {} is generated. \n'.format(outfile))
 
     def preprocess(self, path_rating, path_itemtext, min_rating,
                    _max_length, _max_df, _vocab_size):
