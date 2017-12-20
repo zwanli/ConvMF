@@ -13,13 +13,14 @@ import numpy as np
 from text_analysis.models import CNN_CAE_module
 from text_analysis.models import CNN_module
 
-def ConvCAEMF(res_dir, train_user, train_item, valid_user, test_user,
+
+def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
               R, attributes_X, CNN_X, vocab_size, init_W=None, give_item_weight=True,
               max_iter=50, lambda_u=1, lambda_v=100, dimension=50,
-              dropout_rate=0.2, emb_dim=200, max_len=300, num_kernel_per_ws=100):
+              dropout_rate=0.2, emb_dim=200, max_len=300, num_kernel_per_ws=100, a=1, b=0.01):
     # explicit setting
-    a = 1
-    b = 0.01
+    # a = 1
+    # b = 0.01
 
     num_user = R.shape[0]
     num_item = R.shape[1]
@@ -27,7 +28,9 @@ def ConvCAEMF(res_dir, train_user, train_item, valid_user, test_user,
     PREV_LOSS = 1e-50
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
-    f1 = open(res_dir + '/state.log', 'w')
+    if not os.path.exists(state_log_dir):
+        os.makedirs(state_log_dir)
+    f1 = open(state_log_dir + '/state.log', 'w')
 
     Train_R_I = train_user[1]
     Train_R_J = train_item[1]
@@ -45,7 +48,7 @@ def ConvCAEMF(res_dir, train_user, train_item, valid_user, test_user,
 
     cnn_module = CNN_CAE_module(dimension, vocab_size, dropout_rate,
                                 emb_dim, max_len, num_kernel_per_ws, init_W, nb_features=num_features)
-    theta = cnn_module.get_projection_layer(CNN_X,attributes_X)
+    theta = cnn_module.get_projection_layer(CNN_X, attributes_X)
     np.random.seed(133)
     U = np.random.uniform(size=(num_user, dimension))
     V = theta
@@ -92,8 +95,8 @@ def ConvCAEMF(res_dir, train_user, train_item, valid_user, test_user,
 
         loss = loss + np.sum(sub_loss)
         seed = np.random.randint(100000)
-        history = cnn_module.train(CNN_X, V, item_weight, seed,att_train=attributes_X)
-        theta = cnn_module.get_projection_layer(CNN_X,attributes_X)
+        history = cnn_module.train(CNN_X, V, item_weight, seed, att_train=attributes_X)
+        theta = cnn_module.get_projection_layer(CNN_X, attributes_X)
         cnn_loss = history.history['loss'][-1]
 
         loss = loss - 0.5 * lambda_v * cnn_loss * num_item
@@ -109,8 +112,8 @@ def ConvCAEMF(res_dir, train_user, train_item, valid_user, test_user,
 
         if (val_eval < pre_val_eval):
             cnn_module.save_model(res_dir + '/CNN_weights.hdf5')
-            np.savetxt(res_dir + '/U.dat', U)
-            np.savetxt(res_dir + '/V.dat', V)
+            np.savetxt(res_dir + '/final-U.dat', U)
+            np.savetxt(res_dir + '/final-V.dat', V)
             np.savetxt(res_dir + '/theta.dat', theta)
         else:
             count = count + 1
@@ -129,7 +132,8 @@ def ConvCAEMF(res_dir, train_user, train_item, valid_user, test_user,
 
     f1.close()
 
-def ConvMF(res_dir, train_user, train_item, valid_user, test_user,
+
+def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user,
            R, CNN_X, vocab_size, init_W=None, give_item_weight=True,
            max_iter=50, lambda_u=1, lambda_v=100, dimension=50,
            dropout_rate=0.2, emb_dim=200, max_len=300, num_kernel_per_ws=100):
@@ -142,7 +146,10 @@ def ConvMF(res_dir, train_user, train_item, valid_user, test_user,
     PREV_LOSS = 1e-50
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
-    f1 = open(res_dir + '/state.log', 'w')
+    #f1 = open(res_dir + '/state.log', 'w')
+    if not os.path.exists(state_log_dir):
+        os.makedirs(state_log_dir)
+    f1 = open(state_log_dir + '/state.log', 'w')
 
     Train_R_I = train_user[1]
     Train_R_J = train_item[1]
@@ -224,8 +231,8 @@ def ConvMF(res_dir, train_user, train_item, valid_user, test_user,
 
         if (val_eval < pre_val_eval):
             cnn_module.save_model(res_dir + '/CNN_weights.hdf5')
-            np.savetxt(res_dir + '/U.dat', U)
-            np.savetxt(res_dir + '/V.dat', V)
+            np.savetxt(res_dir + '/final-U.dat', U)
+            np.savetxt(res_dir + '/final-V.dat', V)
             np.savetxt(res_dir + '/theta.dat', theta)
         else:
             count = count + 1

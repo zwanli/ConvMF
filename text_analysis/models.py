@@ -212,7 +212,7 @@ class CNN_CAE_module():
         np.random.seed(seed)
         att_train = np.random.permutation(att_train)
 
-        print("Train...CNN module")
+        print("Train...CNN_CAE module")
         history = self.model.fit({'doc_input': X_train, 'cae_input': att_train},
                                  {'joint_output': V, 'cae_output': att_train},
                                  verbose=0, batch_size=self.batch_size, epochs=self.nb_epoch,
