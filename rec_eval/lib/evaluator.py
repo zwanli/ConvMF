@@ -133,7 +133,8 @@ class Evaluator(object):
 
         np.save(os.path.join(self.experiment_directory, "results_matrix"), results)
         # Writing the results to a file:
-        with open(os.path.join(self.experiment_directory, "Exp_" + self.experiment_name + "_eval_results.txt"), 'w', newline='') as f:
+        # with open(os.path.join(self.experiment_directory, "Exp_" + self.experiment_name + "_eval_results.txt"), 'w', newline='') as f:
+        with open(os.path.join(self.experiment_directory, "Exp_" + self.experiment_name + "_eval_results.txt"), 'w') as f:
             for s in results_list:
                 f.write('[%s]' % ', '.join(map(str, s)) + '\n')
 

@@ -14,6 +14,7 @@ from models import ConvCAEMF
 from models import ConvMF
 from data_manager import Data_Factory
 from rec_eval.lib.evaluator import Evaluator
+from util import Logger
 
 parser = argparse.ArgumentParser()
 
@@ -178,6 +179,7 @@ elif not grid_search:
 
 if grid_search:
     res_dir = args.res_dir
+    sys.stdout = Logger(os.path.join(res_dir,'log.txt'))
     emb_dim = args.emb_dim
     pretrain_w2v = args.pretrain_w2v
     max_length = args.max_length_document
@@ -225,6 +227,8 @@ if grid_search:
         os.remove(os.path.join(fixed_res_dir, 'score.npy'))
 
     all_avg_results ={}
+    num_config = len(list(itertools.product(lambda_u_list, lambda_v_list, confidence_mods, content_mods)))
+    c = 1
     for lambda_u, lambda_v, confidence_mod, content_mode in itertools.product(lambda_u_list, lambda_v_list, confidence_mods, content_mods):
         experiment = '{}-{}-{}-{}'.format(lambda_u, lambda_v, confidence_mod, content_mode)
         if content_mode == 'cnn_cae':
@@ -234,10 +238,10 @@ if grid_search:
                 if not os.path.exists(experiment_dir):
                     os.makedirs(experiment_dir)
                 print "==========================================================================================="
-                print "## Hyperparameters\n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod%s" \
-                      %  (lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
+                print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod%s" \
+                      %  (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
                 print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
-
+                c += 1
                 # Read item's attributes
                 labels, features_matrix = data_factory.read_attributes(aux_path + '/paper_attributes.csv')
 
@@ -255,7 +259,7 @@ if grid_search:
                           train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
                           attributes_X=features_matrix)
 
-                evaluator = Evaluator(R.shape[0], fixed_res_dir)
+                evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
                 if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
                     os.remove(os.path.join(fixed_res_dir, 'score.npy'))
 
@@ -269,9 +273,10 @@ if grid_search:
             if not os.path.exists(experiment):
                 os.makedirs(experiment)
             print "==========================================================================================="
-            print "## Hyperparameters\n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod%s" \
-                  % (lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
+            print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod%s" \
+                  % (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
             print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
+            c += 1
 
             train_user = data_factory.read_rating(
                 os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
@@ -286,7 +291,7 @@ if grid_search:
                    lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
                    give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
                    train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
-            evaluator = Evaluator(R.shape[0], fixed_res_dir)
+            evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
             results = evaluator.eval_experiment(splits_dir)
             avg_results = list(map(float, results[-1][1:]))
             all_avg_results[experiment] = avg_results

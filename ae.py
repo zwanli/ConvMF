@@ -1,6 +1,8 @@
 '''
 Author @wiseodd
 '''
+from mpmath.functions.functions import im
+
 from tensorflow.examples.tutorials.mnist import input_data
 from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Deconv2D, UpSampling2D, Flatten, Reshape
 from keras.models import Model
@@ -13,7 +15,7 @@ import keras.backend as K
 import tensorflow as tf
 
 from data_manager import Data_Factory
-
+from util import Logger
 # tf.python.control_flow_ops = tf
 
 
