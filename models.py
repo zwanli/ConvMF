@@ -17,7 +17,8 @@ from text_analysis.models import CNN_module
 def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
               R, attributes_X, CNN_X, vocab_size, init_W=None, give_item_weight=True,
               max_iter=50, lambda_u=1, lambda_v=100, dimension=50,
-              dropout_rate=0.2, emb_dim=200, max_len=300, num_kernel_per_ws=100, a=1, b=0.01):
+              dropout_rate=0.2, emb_dim=200, max_len=300, num_kernel_per_ws=100,
+              a=1, b=0.01, att_dim=50):
     # explicit setting
     # a = 1
     # b = 0.01
@@ -47,7 +48,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     pre_val_eval = 1e10
 
     cnn_module = CNN_CAE_module(dimension, vocab_size, dropout_rate,
-                                emb_dim, max_len, num_kernel_per_ws, init_W, nb_features=num_features)
+                                emb_dim, max_len, num_kernel_per_ws, init_W,cae_N_hidden=att_dim, nb_features=num_features)
     theta = cnn_module.get_projection_layer(CNN_X, attributes_X)
     np.random.seed(133)
     U = np.random.uniform(size=(num_user, dimension))

@@ -66,6 +66,8 @@ parser.add_argument("-w", "--num_kernel_per_ws", type=int,
                     help="Number of kernels per window size for CNN module (default: 100)", default=100)
 parser.add_argument("--content_mode", type=str, choices=['cnn', 'cnn_cae'],
                     help="Content to be used, CNN: textual content, CAE: auxiliary item features", default='cnn')
+parser.add_argument("--att_dim", type=int,
+                    help="Size of latent dimension for attributes vectors (default: 50)", default=50)
 parser.add_argument("--grid_search", type=bool,
                     help="Run grid search to tune the hyperparameters (default = False)", default=False)
 
@@ -163,13 +165,14 @@ elif not grid_search:
     test_user = data_factory.read_rating(glob.glob(data_path + '/test-fold_*-users.dat')[0])
 
     if content_mode == 'cnn_cae':
+        att_dim = args.att_dim
         # Read item's attributes
         labels, features_matrix = data_factory.read_attributes(aux_path + '/paper_attributes.csv')
         ConvCAEMF(max_iter=max_iter, res_dir=res_dir, state_log_dir=res_dir,
                   lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
                   give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
                   train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
-                  attributes_X=features_matrix)
+                  attributes_X=features_matrix, att_dim=att_dim)
     elif content_mode == 'cnn':
         ConvMF(max_iter=max_iter, res_dir=res_dir, state_log_dir=res_dir,
                lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
@@ -190,11 +193,11 @@ if grid_search:
     give_item_weight = args.give_item_weight
 
 
-    lambda_u_list = [0.001, 0.01, 0.1, 1, 10, 100, 1000]
-    lambda_v_list = [0.01, 0.1, 1, 10, 100, 1000, 1000, 100000]
+    lambda_u_list =[0.001, 0.01, 0.1] #[0.001, 0.01, 0.1, 1, 10, 100, 1000]
+    lambda_v_list =[10,100,1000] #[0.01, 0.1, 1, 10, 100, 1000, 1000, 100000]
     confidence_mods = ['c']  # TODO: , 'user-dependant'] # c: constant, ud: user_dependent
-    content_mods = ['cnn_cae', 'cnn']
-    cae_encoded_dims = [50] #[10, 20, 50, 100, 200]
+    content_mods = ['cnn_cae']#['cnn_cae', 'cnn']
+    att_dims = [10,20,100,200] #[10, 20, 50, 100, 200]
 
     if res_dir is None:
         sys.exit("Argument missing - res_dir is required")
@@ -232,8 +235,8 @@ if grid_search:
     for lambda_u, lambda_v, confidence_mod, content_mode in itertools.product(lambda_u_list, lambda_v_list, confidence_mods, content_mods):
         experiment = '{}-{}-{}-{}'.format(lambda_u, lambda_v, confidence_mod, content_mode)
         if content_mode == 'cnn_cae':
-            for cae_encoded_dim in cae_encoded_dims:
-                experiment_cae = experiment + '-{}'.format(cae_encoded_dim)
+            for att_dim in att_dims:
+                experiment_cae = experiment + '-{}'.format(att_dim)
                 experiment_dir = os.path.join(res_dir,experiment_cae)
                 if not os.path.exists(experiment_dir):
                     os.makedirs(experiment_dir)
@@ -257,7 +260,7 @@ if grid_search:
                           lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
                           give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
                           train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
-                          attributes_X=features_matrix)
+                          attributes_X=features_matrix, att_dim=att_dim)
 
                 evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
                 if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
@@ -292,6 +295,8 @@ if grid_search:
                    give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
                    train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
             evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
+            if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
+                os.remove(os.path.join(fixed_res_dir, 'score.npy'))
             results = evaluator.eval_experiment(splits_dir)
             avg_results = list(map(float, results[-1][1:]))
             all_avg_results[experiment] = avg_results

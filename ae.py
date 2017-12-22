@@ -118,22 +118,46 @@ def contractive_autoencoder(X, lam=1e-3):
         return mse + contractive
 
     model.compile(optimizer='rmsprop', loss=contractive_loss)
-    model.fit(X, X, batch_size=N_batch, epochs=20)
+    model.fit(X, X, batch_size=N_batch, epochs=5)
 
     return model, Model(inputs=inputs, outputs=encoded)
 
 
 if __name__ == '__main__':
-    data_factory = Data_Factory()
-    labels, X_train = data_factory.read_attributes('/home/wanli/data/Extended_ctr/convmf/dummy/preprocessed/paper_info_processed.csv')
-    model, representation = contractive_autoencoder(X_train)
+    # data_factory = Data_Factory()
+    # labels, X_train = data_factory.read_attributes('/home/wanli/data/Extended_ctr/convmf/dummy/preprocessed/paper_info_processed.csv')
+    # model, representation = contractive_autoencoder(X_train)
+    #
+    # idx = [0,1,12,13,4]
+    # X_recons = model.predict(X_train[idx])
+    #
+    # # idxs = np.random.randint(0, X_test.shape[0], size=5)
+    # # X_recons = model.predict(X_test[idxs])
+    #
+    # for X_recon in X_recons:
+    #     plt.imshow(X_recon.reshape(28, 28), cmap='Greys_r')
+    #     plt.show()
 
-    idx = [0,1,12,13,4]
-    X_recons = model.predict(X_train[idx])
+    import cPickle as pickl
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
 
-    idxs = np.random.randint(0, X_test.shape[0], size=5)
-    X_recons = model.predict(X_test[idxs])
-
-    for X_recon in X_recons:
-        plt.imshow(X_recon.reshape(28, 28), cmap='Greys_r')
-        plt.show()
+    path = '/home/wanli/data/Extended_ctr/convmf/gridsearch'
+    R = pickl.load(open(path + "/all_avg_results.dat", "rb"))
+    recall_breaks = [5, 10] + list(xrange(20, 201, 20))
+    mrr_breaks = [10]
+    ndcg_breaks = [5, 10]
+    results_header = ["Rec@" + str(i) for i in recall_breaks] + ["MRR@" + str(i) for i in mrr_breaks] + [
+        "nDCG@" + str(i) for i in ndcg_breaks]
+    print results_header
+    df = pd.DataFrame.from_records(R.values(), index=R.keys(), columns=results_header)
+    # df = df.cumsum()
+    plt.figure()
+    df.plot()
+    # plt.show()
+    df2 = df.loc[:, 'MRR@10':]
+    df2 = df2.sort_values(by=['nDCG@5', 'nDCG@10', 'MRR@10'])
+    df2.sort_index(inplace=True)
+    print(df2.idxmax(axis=0, skipna=True))
+    print df

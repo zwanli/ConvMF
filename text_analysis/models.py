@@ -28,12 +28,12 @@ class CNN_CAE_module():
     '''
     classdocs
     '''
-    batch_size = 8
+    batch_size = 256
     # More than this epoch cause easily over-fitting on our data sets
     nb_epoch = 5
 
     def __init__(self, output_dimesion, vocab_size, dropout_rate, emb_dim, max_len, nb_filters,
-                 init_W=None, nb_features=17):
+                 init_W=None, cae_N_hidden=50, nb_features=17):
 
         ''' CNN Module'''
         self.max_len = max_len
@@ -89,10 +89,10 @@ class CNN_CAE_module():
         ''' Attributes module '''
         lam = 1e-3
         N = nb_features
-        N_hidden = 50
+        # cae_N_hidden = 50
 
         att_input = Input(shape=(N,), name='cae_input')
-        encoded = Dense(N_hidden, activation='sigmoid', name='encoded')(att_input)
+        encoded = Dense(cae_N_hidden, activation='sigmoid', name='encoded')(att_input)
         att_output = Dense(N, activation='linear', name='cae_output')(encoded)
 
         # model = Model(input=att_input, output=att_output)
@@ -100,12 +100,12 @@ class CNN_CAE_module():
         def contractive_loss(y_pred, y_true):
             mse = K.mean(K.square(y_true - y_pred), axis=1)
 
-            W = K.variable(value=model.get_layer('encoded').get_weights()[0])  # N x N_hidden
-            W = K.transpose(W)  # N_hidden x N
+            W = K.variable(value=model.get_layer('encoded').get_weights()[0])  # N x cae_N_hidden
+            W = K.transpose(W)  # cae_N_hidden x N
             h = model.get_layer('encoded').output
-            dh = h * (1 - h)  # N_batch x N_hidden
+            dh = h * (1 - h)  # N_batch x cae_N_hidden
 
-            # N_batch x N_hidden * N_hidden x 1 = N_batch x 1
+            # N_batch x cae_N_hidden * cae_N_hidden x 1 = N_batch x 1
             contractive = lam * K.sum(dh ** 2 * K.sum(W ** 2, axis=1), axis=1)
 
             return mse + contractive
@@ -229,7 +229,7 @@ class CNN_CAE_module():
         # Y = self.model.predict(
         #     {'doc_input': X_train, 'cae_input':att_train}, batch_size=len(X_train))
         Y = self.model.predict(
-            {'doc_input': X_train, 'cae_input': att_train}, batch_size=1024)
+            {'doc_input': X_train, 'cae_input': att_train}, batch_size=2048)
         return Y[0]
 
 
@@ -335,5 +335,5 @@ class CNN_module():
         # Y = self.model.predict(
         #     {'doc_input': X_train}, batch_size=len(X_train))
         Y = self.model.predict(
-            {'doc_input': X_train}, batch_size=1024)
+            {'doc_input': X_train}, batch_size=2048)
         return Y
