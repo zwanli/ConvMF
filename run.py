@@ -167,7 +167,8 @@ elif not grid_search:
     if content_mode == 'cnn_cae':
         att_dim = args.att_dim
         # Read item's attributes
-        labels, features_matrix = data_factory.read_attributes(aux_path + '/paper_attributes.csv')
+        labels, features_matrix = data_factory.read_attributes(os.path.join(aux_path + 'paper_attributes.tsv'))
+
         ConvCAEMF(max_iter=max_iter, res_dir=res_dir, state_log_dir=res_dir,
                   lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
                   give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
@@ -246,7 +247,7 @@ if grid_search:
                 print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
                 c += 1
                 # Read item's attributes
-                labels, features_matrix = data_factory.read_attributes(aux_path + '/paper_attributes.csv')
+                labels, features_matrix = data_factory.read_attributes(os.path.join(aux_path + 'paper_attributes.tsv'))
 
                 # num_folds = 5
                 # for f in range(1,num_folds+1):
@@ -278,7 +279,9 @@ if grid_search:
             print "==========================================================================================="
             print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod%s" \
                   % (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
-            print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
+            # print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
+            print "\tContent: %s" % ('Text and item attributes\n\tAttributes latent vector dim %d' % att_dim)
+            c += 1
             c += 1
 
             train_user = data_factory.read_rating(
@@ -302,5 +305,7 @@ if grid_search:
             all_avg_results[experiment] = avg_results
             pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
 
-    print 'Writing avg results for all sets of configuratoins to %s' % os.path.join(res_dir,'all_avg_results.npy')
-    pickl.dump(all_avg_results, open(os.path.join(res_dir,'all_avg_results.dat'), "wb"))
+    # print 'Writing avg results for all sets of configuratoins to %s' % os.path.join(res_dir,'all_avg_results.npy')
+    # pickl.dump(all_avg_results, open(os.path.join(res_dir,'all_avg_results.dat'), "wb"))
+    print 'Writing avg results for all sets of configuratoins to %s' % os.path.join(res_dir,'all_avg_results_tanh.dat')
+    pickl.dump(all_avg_results, open(os.path.join(res_dir,'all_avg_results_tanh.dat'), "wb"))

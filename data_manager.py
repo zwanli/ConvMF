@@ -101,6 +101,7 @@ class Data_Factory():
         print "%d words exist in the given pretrained model" % count
 
         return W
+
     def read_attributes(self, path):
         """
             Parse papers' features
@@ -384,7 +385,6 @@ class Data_Factory():
 
     def convert_and_save(self, infile, outfile):
         print('Reading ratings %s ...' %infile)
-
         formatted_list =[]
         with open(infile, 'r') as f:
             with open(outfile, 'w') as of:
@@ -394,7 +394,7 @@ class Data_Factory():
                     idx = map(int, line.split()[1:])
                     if row_length > 0:
                         if row_length != len(idx):
-                            print "Row length doesn't match the number elemets "
+                            print "Row length doesn't match the number of elements "
                             sys.exit()
                         formatted = [str(row_length)]
                         formatted.extend(["%d:%.1f" % (i, 1.0)

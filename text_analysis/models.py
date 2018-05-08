@@ -18,7 +18,22 @@ from keras.layers.core import Reshape, Flatten, Dropout
 from keras.layers import Input, Embedding, Dense, concatenate
 from keras.models import Model, Sequential
 from keras.preprocessing import sequence
-import keras.backend as K
+from keras.utils import plot_model
+
+from keras import backend as K
+import  tensorflow as tf
+###################################
+# TensorFlow wizardry
+config = tf.ConfigProto()
+
+# Don't pre-allocate memory; allocate as-needed
+config.gpu_options.allow_growth = True
+
+# Only allow a total of half the GPU memory to be allocated
+config.gpu_options.per_process_gpu_memory_fraction = 0.8
+
+# Create a session with the above options specified.
+K.tensorflow_backend.set_session(tf.Session(config=config))
 
 
 # from keras.utils import plot_model
@@ -127,6 +142,7 @@ class CNN_CAE_module():
         # plot_model(model, to_file='model.png')
 
         self.model = model
+        plot_model(model, to_file='model.png',show_shapes=True)
 
     def contractive_autoencoder(self, X, lam=1e-3):
         X = X.reshape(X.shape[0], -1)
@@ -337,3 +353,4 @@ class CNN_module():
         Y = self.model.predict(
             {'doc_input': X_train}, batch_size=2048)
         return Y
+

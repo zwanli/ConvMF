@@ -10,18 +10,26 @@ from sklearn import preprocessing
 
 def convert_ratings(in_path, out_path):
     print('Reading ratings ...')
+
+    items_id = set()
+    max_item_id = 0
     with open(in_path, 'r') as f:
         with open(out_path,'w') as outfile:
             u_id =0
             for line in f.readlines():
-                items_idx = line.split()[1:]
-                items_idx = [int(x) for x in items_idx]
+                item_idx = line.split()[1:]
+                item_idx = [int(x) for x in item_idx]
                 user_id = u_id  # 0 base index
                 rating = 1
-                for i in items_idx:
+                for i in item_idx:
+                    if i > max_item_id:
+                        max_item_id = i
+                    items_id.add(i)
                     outfile.write('{}::{}::{}\n'.format(user_id,i,rating))
                 u_id +=1
+    print('Number of distinctive items {}, Max item id {}'.format(len(items_id),max_item_id))
     print('File {} is generated. Each raw is user_id::item_id::rating\n'.format(out_path))
+    return items_id
 
 def convert_abstracts(in_path, out_path,dataset='citeulike-a'):
 
@@ -49,7 +57,8 @@ def convert_abstracts(in_path, out_path,dataset='citeulike-a'):
                 document = []
                 sentences = [document.extend(word_tokenize(x)) for x in sentences]
 
-                outfile.write('{}::{}|\n'.format(int(doc_id) - 1, ' '.join(document)))
+                #todo: check the 0 base indexing
+                outfile.write('{}::{}|\n'.format(int(doc_id), ' '.join(document)))
     print('File {} is generated. Each raw is item_id::abstract|'.format(out_path))
 
 def is_number(s):
@@ -59,49 +68,50 @@ def is_number(s):
     except ValueError:
         return False
 
-def proccess_paper_info(path, outfile, paper_count):
+def proccess_paper_info(path, outfile,items_id, paper_count):
     null_token = 'NaN'
     now = datetime.datetime.now()
 
     clean_file_path = path +'.cleaned'
-    if not os.path.exists(clean_file_path):
-        with open(path, "r", encoding='utf-8', errors='ignore') as infile:
-            reader = csv.reader(infile, delimiter=',')
-            i = 0
-            first_line = True
+    if os.path.exists(clean_file_path):
+        os.remove(clean_file_path)
+    with open(path, "r", encoding='utf-8', errors='ignore') as infile:
+        reader = csv.reader(infile, delimiter=',')
+        i = 0
+        first_line = True
 
-            with open(clean_file_path, 'w', newline='') as outfile:
-                writer = csv.writer(outfile, delimiter='\t', quoting=csv.QUOTE_MINIMAL)
-                for line in reader:
-                    if first_line:
-                        row_length = len(line)
-                        first_line = False
-                        writer.writerow(line)
-                        continue
-                    if len(line) > row_length:
-                        line[row_length] = ' '.join(line[row_length-1:]).replace('\t', ' ')
-                        line = line[:row_length]
-                    paper_id = int(line[0]) - 1
-                    if paper_id != i and int(paper_id) != paper_count:
-                        for _ in range(int(paper_id) - i):
-                            empty_row = [str(i)]
-                            empty_row.extend([null_token] * (row_length-1))
-                            # empty_row = '\t'.join(empty_row)
-                            writer.writerow(empty_row)
-                            i += 1
-                    for j, _ in enumerate(line):
-                        if line[j] == '\\N':
-                            line[j] = null_token
+        with open(clean_file_path, 'w', newline='') as f2:
+            writer = csv.writer(f2, delimiter='\t', quoting=csv.QUOTE_MINIMAL)
+            for line in reader:
+                if first_line:
+                    row_length = len(line)
+                    first_line = False
                     writer.writerow(line)
-                    i += 1
-                if i < paper_count:
-                    # todo: check the paper count
-                    for _ in range(int(paper_count - 1) - i):
+                    continue
+                if len(line) > row_length:
+                    line[row_length] = ' '.join(line[row_length-1:]).replace('\t', ' ')
+                    line = line[:row_length]
+                paper_id = int(line[0]) - 1
+                if paper_id != i and int(paper_id) != paper_count:
+                    for _ in range(int(paper_id) - i):
                         empty_row = [str(i)]
-                        empty_row.extend([null_token] * (row_length - 1))
+                        empty_row.extend([null_token] * (row_length-1))
                         # empty_row = '\t'.join(empty_row)
                         writer.writerow(empty_row)
                         i += 1
+                for j, _ in enumerate(line):
+                    if line[j] == '\\N':
+                        line[j] = null_token
+                writer.writerow(line)
+                i += 1
+            if i < paper_count:
+                # todo: check the paper count
+                for _ in range(int(paper_count - 1) - i):
+                    empty_row = [str(i)]
+                    empty_row.extend([null_token] * (row_length - 1))
+                    # empty_row = '\t'.join(empty_row)
+                    writer.writerow(empty_row)
+                    i += 1
 
     # Month converter
     months = ['apr','aug', 'dec' ,'feb', 'jan' ,'jul' ,'jun' ,'mar' ,'may', 'nov', 'oct', 'sep']
@@ -201,14 +211,19 @@ def proccess_paper_info(path, outfile, paper_count):
     # add 'citeulike_id' column
     df_normalized = df_normalized.assign(citeulike_id=df.citeulike_id.values)
 
+    #remove items that havn't appeared in the ratings matrix
+    df_normalized = df_normalized.iloc[list(items_id)]
+
     # outfile = os.path.join(os.path.dirname(path),'paper_info_processed.csv')
     df_normalized.to_csv(outfile, sep='\t', na_rep='' )
+
+
     print('Processed features saved to %s' % outfile)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir', type=str, default='/home/wanli/data/Extended_ctr/convmf',
+    parser.add_argument('--data_dir', type=str, default='/home/zaher/data/Extended_ctr/convmf',
                         help='data directory containing input.txt')
     parser.add_argument("--dataset", "-d", type=str, default='citeulike-a',
                         help="Which dataset to use", choices=['dummy', 'citeulike-a', 'citeulike-t'])
@@ -219,22 +234,25 @@ def main():
         paper_count = 16980
     elif args.dataset == 'citeulike-t':
         dataset_folder = os.path.join(args.data_dir ,'citeulike_t_extended')
+        paper_count = 25976
     elif args.dataset == 'dummy':
         dataset_folder = os.path.join(args.data_dir , 'dummy')
+        paper_count = 1929
     else:
-        print("Warning: Given dataset not known, setting to dummy")
-        dataset_folder = os.path.join(args.data_dir ,'citeulike_a_extended')
+        print("Warning: Given dataset not known, setting to citeulike_a_extended")
+        dataset_folder = os.path.join(args.data_dir,'citeulike_a_extended')
 
     ratings_path = os.path.join(dataset_folder,'users.dat')
     ratings_outfile = os.path.join(dataset_folder,'ratings.txt')
-    convert_ratings(ratings_path, ratings_outfile)
+    items_id = convert_ratings(ratings_path, ratings_outfile)
 
     abstracts_path = os.path.join(dataset_folder, 'raw-data.csv')
     abstracts_outfile = os.path.join(dataset_folder, 'papers.txt')
     convert_abstracts(abstracts_path, abstracts_outfile)
 
     paper_info_path= os.path.join(dataset_folder, 'paper_info.csv')
-    paper_info_outfile = os.path.join(dataset_folder, 'paper_attributes.csv')
-    proccess_paper_info(paper_info_path,paper_info_outfile,paper_count=paper_count)
+    paper_info_outfile = os.path.join(dataset_folder, 'preprocessed/paper_attributes.tsv')
+    proccess_paper_info(paper_info_path, paper_info_outfile, items_id =items_id, paper_count=paper_count)
+
 if __name__ == '__main__':
      main()
