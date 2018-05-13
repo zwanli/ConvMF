@@ -64,3 +64,30 @@ Parameter | Default
 17. `max_iter`: the maximum number of iteration.
 18. `num_kernel_per_ws`: the number of kernels per window size for CNN module.
 
+### Create splits
+>>     python3 rec_eval/lib/split.py -d ${rootpath}/${dataFolder} -s in-matrix-item -v
+### First step: convert citeulike data
+Convert the citeulike data format
+>> python3 process_citeulike.py --data_dir ../data --dataset citeulike-a
+
+### Second step: preprocess data
+>> python run.py --do_preprocess true --raw_rating_data_path /vol2/wanliz/data/Extended_ctr/convmf/citeulike_a_extended/ratings.txt --raw_item_document_data_path /vol2/wanliz/data/Extended_ctr/convmf/citeulike_a_extended/papers.txt -d /vol2/wanliz/data/Extended_ctr/convmf/citeulike_a_extended/inmatrix -a /vol2/wanliz/data/Extended_ctr/convmf/citeulike_a_extended/preprocessed/ --splits_dir /vol2/wanliz/data/Extended_ctr/convmf/citeulike_a_extended/in-matrix-item_folds/fold-1 -o /vol2/wanliz/data/Extended_ctr/convmf/citeulike_a_extended/results/inmatrix/
+
+### Third step: train
+>> python run.py
+-d
+/home/zaher/data/Extended_ctr/convmf/dummy/preprocessed/inmatrix/fold-1
+-a
+/home/zaher/data/Extended_ctr/convmf/dummy/preprocessed/
+-o
+/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/
+-e
+200
+-k
+200
+-p
+/home/zaher/data/cbow_w2v/w2v_200.txt
+-u
+10
+-v
+100

@@ -47,9 +47,9 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
 
     pre_val_eval = 1e10
 
-    cnn_module = CNN_CAE_module(dimension, vocab_size, dropout_rate,
+    cnn_cae_module = CNN_CAE_module(dimension, vocab_size, dropout_rate,
                                 emb_dim, max_len, num_kernel_per_ws, init_W,cae_N_hidden=att_dim, nb_features=num_features)
-    theta = cnn_module.get_projection_layer(CNN_X, attributes_X)
+    theta = cnn_cae_module.get_projection_layer(CNN_X, attributes_X)
     np.random.seed(133)
     U = np.random.uniform(size=(num_user, dimension))
     V = theta
@@ -96,8 +96,8 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
 
         loss = loss + np.sum(sub_loss)
         seed = np.random.randint(100000)
-        history = cnn_module.train(CNN_X, V, item_weight, seed, att_train=attributes_X)
-        theta = cnn_module.get_projection_layer(CNN_X, attributes_X)
+        history = cnn_cae_module.train(CNN_X, V, item_weight, seed, att_train=attributes_X)
+        theta = cnn_cae_module.get_projection_layer(CNN_X, attributes_X)
         cnn_loss = history.history['loss'][-1]
 
         loss = loss - 0.5 * lambda_v * cnn_loss * num_item
@@ -112,7 +112,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
         if (val_eval < pre_val_eval):
-            cnn_module.save_model(res_dir + '/CNN_weights.hdf5')
+            cnn_cae_module.save_model(res_dir + '/CNN_CAE_weights.hdf5')
             np.savetxt(res_dir + '/final-U.dat', U)
             np.savetxt(res_dir + '/final-V.dat', V)
             np.savetxt(res_dir + '/theta.dat', theta)
@@ -132,7 +132,8 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
         PREV_LOSS = loss
 
     f1.close()
-
+    o = cnn_cae_module.get_intermediate_output(CNN_X, attributes_X)
+    np.savetxt('cnn_cae_tanh.csv', o, fmt='%1.4f',delimiter=',')
 
 def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user,
            R, CNN_X, vocab_size, init_W=None, give_item_weight=True,

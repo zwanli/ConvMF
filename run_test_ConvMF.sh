@@ -52,7 +52,7 @@ True
 True
 %
 
-## preprocessing step for fold 5
+## preprocessing step for fold 1
 #run.py
 --do_preprocess
 true

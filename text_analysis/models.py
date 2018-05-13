@@ -107,7 +107,7 @@ class CNN_CAE_module():
         # cae_N_hidden = 50
 
         att_input = Input(shape=(N,), name='cae_input')
-        encoded = Dense(cae_N_hidden, activation='sigmoid', name='encoded')(att_input)
+        encoded = Dense(cae_N_hidden, activation='tanh', name='encoded')(att_input)
         att_output = Dense(N, activation='linear', name='cae_output')(encoded)
 
         # model = Model(input=att_input, output=att_output)
@@ -125,7 +125,7 @@ class CNN_CAE_module():
 
             return mse + contractive
 
-        joint_output = concatenate([dropout, encoded])
+        joint_output = concatenate([dropout, encoded], name='concatenated_output')
 
         '''Projection Layer & Output Layer'''
         # self.model.add_node(Dense(projection_dimension, activation='tanh'),
@@ -248,6 +248,14 @@ class CNN_CAE_module():
             {'doc_input': X_train, 'cae_input': att_train}, batch_size=2048)
         return Y[0]
 
+    def get_intermediate_output(self,X_train, att_train):
+        layer_name = 'concatenated_output'
+        intermediate_layer_model = Model(inputs=self.model.input,
+                                         outputs=self.model.get_layer(layer_name).output)
+        X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
+        intermediate_output = intermediate_layer_model.predict({'doc_input': X_train, 'cae_input': att_train},
+                                                               )#batch_size=2048)
+        return intermediate_output
 
 class CNN_module():
     '''
