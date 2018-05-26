@@ -55,7 +55,7 @@ parser.add_argument("-p", "--pretrain_w2v", type=str,
 parser.add_argument("-g", "--give_item_weight", type=bool,
                     help="True or False to give item weight of ConvMF (default = True)", default=True)
 parser.add_argument("-k", "--dimension", type=int,
-                    help="Size of latent dimension for users and items (default: 50)", default=50)
+                    help="Size of latent dimension for users and items (default: 200)", default=200)
 parser.add_argument("-u", "--lambda_u", type=float,
                     help="Value of user regularizer")
 parser.add_argument("-v", "--lambda_v", type=float,
@@ -182,6 +182,7 @@ elif not grid_search:
 
 
 if grid_search:
+# To avoid long training time, it runs on 1 fold only.
     res_dir = args.res_dir
     sys.stdout = Logger(os.path.join(res_dir,'log.txt'))
     emb_dim = args.emb_dim
@@ -197,8 +198,10 @@ if grid_search:
     lambda_u_list =[0.001, 0.01, 0.1] #[0.001, 0.01, 0.1, 1, 10, 100, 1000]
     lambda_v_list =[10,100,1000] #[0.01, 0.1, 1, 10, 100, 1000, 1000, 100000]
     confidence_mods = ['c']  # TODO: , 'user-dependant'] # c: constant, ud: user_dependent
-    content_mods = ['cnn_cae']#['cnn_cae', 'cnn']
+    content_mods = ['cnn_cae','cnn']#['cnn_cae', 'cnn']
     att_dims = [10,20,100,200] #[10, 20, 50, 100, 200]
+    num_config = len(list(itertools.product(lambda_u_list, lambda_v_list, confidence_mods, content_mods)))
+    num_config = (num_config * (len(att_dims)+ 1))/2
 
     if res_dir is None:
         sys.exit("Argument missing - res_dir is required")
@@ -231,7 +234,6 @@ if grid_search:
         os.remove(os.path.join(fixed_res_dir, 'score.npy'))
 
     all_avg_results ={}
-    num_config = len(list(itertools.product(lambda_u_list, lambda_v_list, confidence_mods, content_mods)))
     c = 1
     for lambda_u, lambda_v, confidence_mod, content_mode in itertools.product(lambda_u_list, lambda_v_list, confidence_mods, content_mods):
         experiment = '{}-{}-{}-{}'.format(lambda_u, lambda_v, confidence_mod, content_mode)
@@ -242,9 +244,10 @@ if grid_search:
                 if not os.path.exists(experiment_dir):
                     os.makedirs(experiment_dir)
                 print "==========================================================================================="
-                print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod%s" \
+                print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod %s" \
                       %  (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
-                print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
+                print "\tContent: %s" % ('Text and item attributes\n\tAttributes latent vector dim %d' % att_dim)
+
                 c += 1
                 # Read item's attributes
                 labels, features_matrix = data_factory.read_attributes(os.path.join(aux_path + 'paper_attributes.tsv'))
@@ -280,10 +283,10 @@ if grid_search:
             print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod%s" \
                   % (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
             # print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
-            print "\tContent: %s" % ('Text and item attributes\n\tAttributes latent vector dim %d' % att_dim)
-            c += 1
-            c += 1
+            print "\tContent: %s" % 'Text'
 
+            c += 1
+            fold = 1
             train_user = data_factory.read_rating(
                 os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
             train_item = data_factory.read_rating(

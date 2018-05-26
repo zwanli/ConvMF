@@ -19,11 +19,11 @@ from util import Logger
 # tf.python.control_flow_ops = tf
 
 
-mnist = input_data.read_data_sets('../data/MNIST_data', one_hot=True)
-
-X_train, y_train = mnist.train.images, mnist.train.labels
-X_val, y_val = mnist.validation.images, mnist.validation.labels
-X_test, y_test = mnist.test.images, mnist.test.labels
+# mnist = input_data.read_data_sets('../data/MNIST_data', one_hot=True)
+#
+# X_train, y_train = mnist.train.images, mnist.train.labels
+# X_val, y_val = mnist.validation.images, mnist.validation.labels
+# X_test, y_test = mnist.test.images, mnist.test.labels
 #
 #
 # def autoencoder(X, loss='l2', lam=0.):
@@ -143,8 +143,8 @@ if __name__ == '__main__':
     import pandas as pd
     import matplotlib.pyplot as plt
 
-    path = '/home/wanli/data/Extended_ctr/convmf/gridsearch'
-    R = pickl.load(open(path + "/all_avg_results.dat", "rb"))
+    path = '/home/zaher/data/Extended_ctr/convmf/dummy/results'
+    R = pickl.load(open(path + "/all_avg_results_tanh.dat", "rb"))
     recall_breaks = [5, 10] + list(xrange(20, 201, 20))
     mrr_breaks = [10]
     ndcg_breaks = [5, 10]

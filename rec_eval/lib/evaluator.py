@@ -13,8 +13,8 @@ import numpy as np
 import argparse
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from util.files_utils import read_ratings
-from util.files_utils import print_list
+from rec_eval.util.files_utils import read_ratings
+from rec_eval.util.files_utils import print_list
 
 breaks = range(20, 201, 20)
 delimiter = " "
