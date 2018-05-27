@@ -54,7 +54,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     U = np.random.uniform(size=(num_user, dimension))
     V = theta
 
-    endure_count = 5
+    endure_count = 7
     count = 0
     for iteration in xrange(max_iter):
         loss = 0
@@ -174,7 +174,7 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
     U = np.random.uniform(size=(num_user, dimension))
     V = theta
 
-    endure_count = 5
+    endure_count = 7
     count = 0
     for iteration in xrange(max_iter):
         loss = 0

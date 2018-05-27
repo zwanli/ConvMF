@@ -145,7 +145,7 @@ elif not grid_search:
     print "\tpretrained w2v data path - %s" % pretrain_w2v
     print "\tdimension: %d\n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tmax_iter: %d\n\tnum_kernel_per_ws: %d" \
           % (dimension, lambda_u, lambda_v, max_iter, num_kernel_per_ws)
-    print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
+    print "\tContent: %s" % ('Text and attributes' if content_mode == 'cnn_cae' else 'Text')
     print "==========================================================================================="
 
     R, D_all = data_factory.load(aux_path)
@@ -159,31 +159,47 @@ elif not grid_search:
         init_W = data_factory.read_pretrained_word2vec(
             pretrain_w2v, D_all['X_vocab'], emb_dim)
 
-    train_user = data_factory.read_rating(glob.glob(data_path + '/train-fold_*-users.dat')[0])
-    train_item = data_factory.read_rating(glob.glob(data_path + '/train-fold_*-items.dat')[0])
-    valid_user = data_factory.read_rating(glob.glob(data_path + '/validation-fold_*-users.dat')[0])
-    test_user = data_factory.read_rating(glob.glob(data_path + '/test-fold_*-users.dat')[0])
+    num_folds = 5
+    for f in range(1,num_folds+1):
+        train_user = data_factory.read_rating(
+            os.path.join(data_path, 'fold-{}'.format(f), 'train-fold_{}-users.dat'.format(f)))
+        train_item = data_factory.read_rating(
+            os.path.join(data_path, 'fold-{}'.format(f), 'train-fold_{}-items.dat'.format(f)))
+        valid_user = data_factory.read_rating(
+            os.path.join(data_path, 'fold-{}'.format(f), 'validation-fold_{}-users.dat'.format(f)))
+        test_user = data_factory.read_rating(
+            os.path.join(data_path, 'fold-{}'.format(f), 'test-fold_{}-users.dat'.format(f)))
 
-    if content_mode == 'cnn_cae':
-        att_dim = args.att_dim
-        # Read item's attributes
-        labels, features_matrix = data_factory.read_attributes(os.path.join(aux_path + 'paper_attributes.tsv'))
+        fold_res_dir = os.path.join(res_dir, 'fold-{}'.format(f))
+        if not os.path.exists(fold_res_dir):
+            os.makedirs(fold_res_dir)
+    # train_user = data_factory.read_rating(glob.glob(data_path + '/train-fold_*-users.dat')[0])
+    # train_item = data_factory.read_rating(glob.glob(data_path + '/train-fold_*-items.dat')[0])
+    # valid_user = data_factory.read_rating(glob.glob(data_path + '/validation-fold_*-users.dat')[0])
+    # test_user = data_factory.read_rating(glob.glob(data_path + '/test-fold_*-users.dat')[0])
 
-        ConvCAEMF(max_iter=max_iter, res_dir=res_dir, state_log_dir=res_dir,
-                  lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
-                  give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
-                  train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
-                  attributes_X=features_matrix, att_dim=att_dim)
-    elif content_mode == 'cnn':
-        ConvMF(max_iter=max_iter, res_dir=res_dir, state_log_dir=res_dir,
-               lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
-               give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
-               train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
+        if content_mode == 'cnn_cae':
+            att_dim = args.att_dim
+            # Read item's attributes
+            labels, features_matrix = data_factory.read_attributes(os.path.join(aux_path + 'paper_attributes.tsv'))
+
+            ConvCAEMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
+                      lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
+                      give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
+                      train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
+                      attributes_X=features_matrix, att_dim=att_dim)
+        elif content_mode == 'cnn':
+            ConvMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
+                   lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
+                   give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
+                   train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
 
 
 if grid_search:
 # To avoid long training time, it runs on 1 fold only.
     res_dir = args.res_dir
+    if not os.path.exists(res_dir):
+        os.makedirs(res_dir)
     sys.stdout = Logger(os.path.join(res_dir,'log.txt'))
     emb_dim = args.emb_dim
     pretrain_w2v = args.pretrain_w2v

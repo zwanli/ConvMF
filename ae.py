@@ -144,6 +144,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
     path = '/home/zaher/data/Extended_ctr/convmf/dummy/results'
+    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/grid_search'
     R = pickl.load(open(path + "/all_avg_results_tanh.dat", "rb"))
     recall_breaks = [5, 10] + list(xrange(20, 201, 20))
     mrr_breaks = [10]
@@ -159,5 +160,7 @@ if __name__ == '__main__':
     df2 = df.loc[:, 'MRR@10':]
     df2 = df2.sort_values(by=['nDCG@5', 'nDCG@10', 'MRR@10'])
     df2.sort_index(inplace=True)
-    print(df2.idxmax(axis=0, skipna=True))
+
+    df3 = df2.idxmax(axis=0, skipna=True)
+    print(df3)
     print df
