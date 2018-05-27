@@ -111,8 +111,15 @@ if do_preprocess:
     # Read training, test, and valid sets from the generated folds
     # data_factory.generate_train_valid_test_file_from_R(
     #     data_path, R, split_ratio)
-    data_factory.generate_train_valid_test_from_ctr_split(splits_dir, data_path)
+    num_folds = 5
+    for f in range(1, num_folds + 1):
+        fold_res_dir = os.path.join(data_path, 'fold-{}'.format(f))
+        if not os.path.exists(fold_res_dir):
+            os.makedirs(fold_res_dir)
+        data_factory.generate_train_valid_test_from_ctr_split(os.path.join(splits_dir, 'fold-{}'.format(f)), fold_res_dir)
+
 elif not grid_search:
+
     res_dir = args.res_dir
     emb_dim = args.emb_dim
     pretrain_w2v = args.pretrain_w2v
@@ -196,6 +203,7 @@ elif not grid_search:
 
 
 if grid_search:
+
 # To avoid long training time, it runs on 1 fold only.
     res_dir = args.res_dir
     if not os.path.exists(res_dir):
