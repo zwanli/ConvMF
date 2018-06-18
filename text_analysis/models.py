@@ -135,6 +135,7 @@ class CNN_CAE_module():
 
         # Output Layergit
         model = Model(inputs=[doc_input, att_input], outputs=[projection, att_output])
+        #todo: check the optimizer
         model.compile(optimizer='rmsprop',
                       # optimizer={'joint_output': 'rmsprop', 'cae_output':  'adam'},
                       loss={'joint_output': 'mse', 'cae_output': contractive_loss},
@@ -178,41 +179,6 @@ class CNN_CAE_module():
 
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
-
-    def qualitative_CNN(self, vocab_size, emb_dim, max_len, nb_filters):
-        self.max_len = max_len
-        max_features = vocab_size
-
-        filter_lengths = [3, 4, 5]
-        print("Build model...")
-        self.qual_model = Graph()
-        self.qual_conv_set = {}
-        '''Embedding Layer'''
-        self.qual_model.add_input(
-            name='input', input_shape=(max_len,), dtype=int)
-
-        self.qual_model.add_node(Embedding(max_features, emb_dim, input_length=max_len,
-                                           weights=self.model.nodes['sentence_embeddings'].get_weights()),
-                                 name='sentence_embeddings', input='input')
-
-        '''Convolution Layer & Max Pooling Layer'''
-        for i in filter_lengths:
-            model_internal = Sequential()
-            model_internal.add(
-                Reshape(dims=(1, max_len, emb_dim), input_shape=(max_len, emb_dim)))
-            self.qual_conv_set[i] = Convolution2D(nb_filters, i, emb_dim, activation="relu", weights=self.model.nodes[
-                'unit_' + str(i)].layers[1].get_weights())
-            model_internal.add(self.qual_conv_set[i])
-            model_internal.add(MaxPooling2D(pool_size=(max_len - i + 1, 1)))
-            model_internal.add(Flatten())
-
-            self.qual_model.add_node(
-                model_internal, name='unit_' + str(i), input='sentence_embeddings')
-            self.qual_model.add_output(
-                name='output_' + str(i), input='unit_' + str(i))
-
-        self.qual_model.compile(
-            'rmsprop', {'output_3': 'mse', 'output_4': 'mse', 'output_5': 'mse'})
 
     def train(self, X_train, V, item_weight, seed, att_train):
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
@@ -361,4 +327,115 @@ class CNN_module():
         Y = self.model.predict(
             {'doc_input': X_train}, batch_size=2048)
         return Y
+
+
+class CAE_module():
+    '''
+    classdocs
+    '''
+    batch_size = 256
+    # More than this epoch cause easily over-fitting on our data sets
+    nb_epoch = 5
+
+    def __init__(self, output_dimesion, cae_N_hidden=50, nb_features=17):
+
+
+
+        projection_dimension = output_dimesion
+
+        ''' Attributes module '''
+        lam = 1e-3
+        # Number of features per data sample
+        N = nb_features
+
+
+        # input layer
+        att_input = Input(shape=(N,), name='cae_input')
+        # encoded-input layer
+        encoded = Dense(cae_N_hidden, activation='tanh', name='encoded')(att_input)
+        # decoded-output layer
+        att_output = Dense(N, activation='linear', name='cae_output')(encoded)
+
+        # Contractive auto-encoder loss
+        def contractive_loss(y_pred, y_true):
+            mse = K.mean(K.square(y_true - y_pred), axis=1)
+
+            W = K.variable(value=model.get_layer('encoded').get_weights()[0])  # N x cae_N_hidden
+            W = K.transpose(W)  # cae_N_hidden x N
+            h = model.get_layer('encoded').output
+            dh = h * (1 - h)  # N_batch x cae_N_hidden
+
+            # N_batch x cae_N_hidden * cae_N_hidden x 1 = N_batch x 1
+            contractive = lam * K.sum(dh ** 2 * K.sum(W ** 2, axis=1), axis=1)
+
+            return mse + contractive
+
+        model = Model(inputs=[att_input], outputs=[encoded, att_output])
+        model.compile(optimizer='adam',
+                      # optimizer={'joint_output': 'rmsprop', 'cae_output':  'adam'},
+                      loss={'encoded': 'mse', 'cae_output': contractive_loss},
+                      loss_weights={'encoded': 1., 'cae_output': 1.})
+        # plot_model(model, to_file='model.png')
+
+        self.model = model
+        #plot_model(model, to_file='model.png',show_shapes=True)
+
+    def contractive_autoencoder(self, X, lam=1e-3):
+        X = X.reshape(X.shape[0], -1)
+        M, N = X.shape
+        N_hidden = 64
+        N_batch = 100
+
+        inputs = Input(shape=(N,))
+        encoded = Dense(N_hidden, activation='sigmoid', name='encoded')(inputs)
+        outputs = Dense(N, activation='linear')(encoded)
+        model = Model(input=inputs, output=outputs)
+
+        def contractive_loss(y_pred, y_true):
+            mse = K.mean(K.square(y_true - y_pred), axis=1)
+
+            W = K.variable(value=model.get_layer('encoded').get_weights()[0])  # N x N_hidden
+            W = K.transpose(W)  # N_hidden x N
+            h = model.get_layer('encoded').output
+            dh = h * (1 - h)  # N_batch x N_hidden
+
+            # N_batch x N_hidden * N_hidden x 1 = N_batch x 1
+            contractive = lam * K.sum(dh ** 2 * K.sum(W ** 2, axis=1), axis=1)
+
+            return mse + contractive
+
+        model.compile(optimizer='adam', loss=contractive_loss)
+        model.fit(X, X, batch_size=N_batch, nb_epoch=3)
+
+        return model, Model(input=inputs, output=encoded)
+
+    def load_model(self, model_path):
+        self.model.load_weights(model_path)
+
+    def save_model(self, model_path, isoverwrite=True):
+        self.model.save_weights(model_path, isoverwrite)
+
+    def train(self, V, item_weight, seed, att_train):
+
+        np.random.seed(seed)
+        V = np.random.permutation(V)
+
+        np.random.seed(seed)
+        item_weight = np.random.permutation(item_weight)
+
+        np.random.seed(seed)
+        att_train = np.random.permutation(att_train)
+
+        print("Train...CAE module")
+        history = self.model.fit({'cae_input': att_train},
+                                 {'encoded': V, 'cae_output': att_train},
+                                 verbose=0, batch_size=self.batch_size, epochs=self.nb_epoch,
+                                 sample_weight={'encoded': item_weight})
+        return history
+
+    def get_projection_layer(self, att_train):
+
+        Y = self.model.predict(
+            {'cae_input': att_train}, batch_size=2048)
+        return Y[0]
 
