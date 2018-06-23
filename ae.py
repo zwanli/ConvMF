@@ -145,6 +145,7 @@ if __name__ == '__main__':
 
     path = '/home/zaher/data/Extended_ctr/convmf/dummy/results'
     path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/grid_search'
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_cae'
     R = pickl.load(open(path + "/all_avg_results_tanh.dat", "rb"))
     recall_breaks = [5, 10] + list(xrange(20, 201, 20))
     mrr_breaks = [10]
