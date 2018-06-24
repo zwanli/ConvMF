@@ -55,9 +55,14 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     U = np.random.uniform(size=(num_user, dimension))
     V = theta
 
+    print ('Training CNN-CAE-MF ...')
     endure_count = 5
     count = 0
-    for iteration in xrange(max_iter):
+    converge_threshold = 1e-4
+    converge = 1.0
+    iteration = 0
+    while iteration < max_iter and converge > converge_threshold:
+        # for iteration in xrange(max_iter):
         loss = 0
         tic = time.time()
         print "%d iteration\t(patience: %d)" % (iteration, count)
@@ -112,13 +117,22 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
 
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
-        if (val_eval < pre_val_eval):
+        if (loss > PREV_LOSS):
+            print ("likelihood is increasing!")
             cnn_cae_module.save_model(res_dir + '/CNN_CAE_weights.hdf5')
             np.savetxt(res_dir + '/final-U.dat', U)
             np.savetxt(res_dir + '/final-V.dat', V)
             np.savetxt(res_dir + '/theta.dat', theta)
+
         else:
             count = count + 1
+        # if (val_eval < pre_val_eval):
+        #     cnn_cae_module.save_model(res_dir + '/CNN_CAE_weights.hdf5')
+        #     np.savetxt(res_dir + '/final-U.dat', U)
+        #     np.savetxt(res_dir + '/final-V.dat', V)
+        #     np.savetxt(res_dir + '/theta.dat', theta)
+        # else:
+        #     count = count + 1
 
         pre_val_eval = val_eval
 
@@ -131,7 +145,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
             break
 
         PREV_LOSS = loss
-
+        iteration += 1
     f1.close()
     o = cnn_cae_module.get_intermediate_output(CNN_X, attributes_X)
     np.savetxt('cnn_cae_tanh.csv', o, fmt='%1.4f',delimiter=',')
@@ -176,9 +190,15 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
     U = np.random.uniform(size=(num_user, dimension))
     V = theta
 
+    print ('Training CNN-MF ...')
+
     endure_count = 5
     count = 0
-    for iteration in xrange(max_iter):
+    converge_threshold = 1e-4
+    converge = 1.0
+    iteration = 0
+    while iteration < max_iter and converge > converge_threshold:
+        # for iteration in xrange(max_iter):
         loss = 0
         tic = time.time()
         print "%d iteration\t(patience: %d)" % (iteration, count)
@@ -233,13 +253,22 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
 
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
-        if (val_eval < pre_val_eval):
+        if (loss > PREV_LOSS):
+            print ("likelihood is increasing!")
             cnn_module.save_model(res_dir + '/CNN_weights.hdf5')
             np.savetxt(res_dir + '/final-U.dat', U)
             np.savetxt(res_dir + '/final-V.dat', V)
             np.savetxt(res_dir + '/theta.dat', theta)
+
         else:
             count = count + 1
+        # if (val_eval < pre_val_eval):
+        #     cnn_module.save_model(res_dir + '/CNN_weights.hdf5')
+        #     np.savetxt(res_dir + '/final-U.dat', U)
+        #     np.savetxt(res_dir + '/final-V.dat', V)
+        #     np.savetxt(res_dir + '/theta.dat', theta)
+        # else:
+        #     count = count + 1
 
         pre_val_eval = val_eval
 
@@ -252,7 +281,7 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
             break
 
         PREV_LOSS = loss
-
+        iteration += 1
     f1.close()
     return tr_eval, val_eval, te_eval
 
@@ -317,9 +346,13 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
     endure_count = 5
     count = 0
-    print ('Training CAE-MF ...')
 
-    for iteration in xrange(max_iter):
+    print ('Training CAE-MF ...')
+    converge_threshold = 1e-4
+    converge = 1.0
+    iteration = 0
+    while iteration < max_iter and  converge > converge_threshold :
+    # for iteration in xrange(max_iter):
         loss = 0
         tic = time.time()
         print "%d iteration\t(patience: %d)" % (iteration, count)
@@ -374,13 +407,24 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
-        if (val_eval < pre_val_eval):
+
+        if (loss > PREV_LOSS):
+            print ("likelihood is increasing!")
             cae_module.save_model(res_dir + '/CAE_weights.hdf5')
             np.savetxt(res_dir + '/final-U.dat', U)
             np.savetxt(res_dir + '/final-V.dat', V)
             np.savetxt(res_dir + '/theta.dat', theta)
+
         else:
             count = count + 1
+
+        # if (val_eval < pre_val_eval):
+        #     cae_module.save_model(res_dir + '/CAE_weights.hdf5')
+        #     np.savetxt(res_dir + '/final-U.dat', U)
+        #     np.savetxt(res_dir + '/final-V.dat', V)
+        #     np.savetxt(res_dir + '/theta.dat', theta)
+        # else:
+        #     count = count + 1
 
         pre_val_eval = val_eval
 
@@ -393,6 +437,7 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
             break
 
         PREV_LOSS = loss
+        iteration += 1
 
     f1.close()
     return tr_eval, val_eval, te_eval
@@ -493,7 +538,7 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
 
         if (loss > PREV_LOSS):
-            print ("likelihood is increasing!");
+            print ("likelihood is increasing!")
             np.savetxt(res_dir + '/final-U.dat', U)
             np.savetxt(res_dir + '/final-V.dat', V)
         else:
