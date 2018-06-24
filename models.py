@@ -135,6 +135,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     f1.close()
     o = cnn_cae_module.get_intermediate_output(CNN_X, attributes_X)
     np.savetxt('cnn_cae_tanh.csv', o, fmt='%1.4f',delimiter=',')
+    return tr_eval, val_eval, te_eval
 
 def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user,
            R, CNN_X, vocab_size, init_W=None, give_item_weight=False,
@@ -253,6 +254,7 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
         PREV_LOSS = loss
 
     f1.close()
+    return tr_eval, val_eval, te_eval
 
 def get_model_memory_usage(batch_size, model):
     import numpy as np
@@ -393,6 +395,7 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
         PREV_LOSS = loss
 
     f1.close()
+    return tr_eval, val_eval, te_eval
 
 
 def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
@@ -432,8 +435,13 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
     endure_count = 5
     count = 0
+
+    converge_threshold = 1e-4
+    converge = 1.0
     print ('Training MF ...')
-    for iteration in xrange(max_iter):
+    iteration = 0
+    while iteration < max_iter and  converge > converge_threshold :
+    # for iteration in xrange(max_iter):
         loss = 0
         tic = time.time()
         print "%d iteration\t(patience: %d)" % (iteration, count)
@@ -483,11 +491,18 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
-        if (val_eval < pre_val_eval):
+
+        if (loss > PREV_LOSS):
+            print ("likelihood is increasing!");
             np.savetxt(res_dir + '/final-U.dat', U)
             np.savetxt(res_dir + '/final-V.dat', V)
         else:
             count = count + 1
+        # if (val_eval < pre_val_eval):
+        #     np.savetxt(res_dir + '/final-U.dat', U)
+        #     np.savetxt(res_dir + '/final-V.dat', V)
+        # else:
+        #     count = count + 1
 
         pre_val_eval = val_eval
 
@@ -500,5 +515,7 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
             break
 
         PREV_LOSS = loss
-
+        iteration += 1
     f1.close()
+
+    return tr_eval, val_eval, te_eval

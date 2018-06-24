@@ -367,16 +367,17 @@ class Splitter(object):
         stats.save_stats_to_file(os.path.join(self.out_folder, 'stats.txt'))
 
     def split(self):
+
         # Calculating and saving the split matrix
         if self.split_method == "user-based":
-            self.user_based_split()
-            self.create_all_folds_test_split_matrix()
+            self.user_based_split(folds_num=self.folds_num)
+            self.create_all_folds_test_split_matrix(folds_num=self.folds_num)
         if self.split_method == "in-matrix-item":
-            self.cf_split()
-            self.create_all_folds_test_split_matrix()
+            self.cf_split(folds_num=self.folds_num)
+            self.create_all_folds_test_split_matrix(folds_num=self.folds_num)
         if self.split_method == "outof-matrix-item":
-            self.out_of_matrix_split()
-            self.create_all_folds_test_split_matrix()
+            self.out_of_matrix_split(folds_num=self.folds_num)
+            self.create_all_folds_test_split_matrix(folds_num=self.folds_num)
 
         # Write split statistics:
         #if len(self.stats_list) > 1:

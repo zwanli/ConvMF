@@ -33,7 +33,7 @@ parser.add_argument("-m", "--min_rating", type=int,
                     help="Users who have less than \"min_rating\" ratings will be removed (default = 1)", default=1)
 parser.add_argument("-l", "--max_length_document", type=int,
                     help="Maximum length of document of each item (default = 300)", default=300)
-parser.add_argument("-f", "--max_df", type=float,
+parser.add_argument("--max_df", type=float,
                     help="Threshold to ignore terms that have a document frequency higher than the given value (default = 0.5)",
                     default=0.5)
 parser.add_argument("-s", "--vocab_size", type=int,
@@ -48,6 +48,8 @@ parser.add_argument("-d", "--data_path", type=str,
 parser.add_argument("--splits_dir", type=str,
                     help="Path to the generated folds directory")
 parser.add_argument("-a", "--aux_path", type=str, help="Path to R, D_all sets")
+parser.add_argument("--fold_num", "-f", type=int, help="The number of folds to be generated. Default is 5",
+                    choices=[5,10], required=True)
 
 # Option for running ConvMF
 parser.add_argument("-o", "--res_dir", type=str,
@@ -82,6 +84,7 @@ do_preprocess = args.do_preprocess
 data_path = args.data_path
 aux_path = args.aux_path
 splits_dir = args.splits_dir
+fold_num = args.fold_num
 if data_path is None:
     sys.exit("Argument missing - data_path is required")
 if aux_path is None:
@@ -99,14 +102,14 @@ if do_preprocess:
     split_ratio = args.split_ratio
 
     print "=================================Preprocess Option Setting================================="
-    print "\tsaving preprocessed aux path - %s" % aux_path
-    print "\tsaving preprocessed data path - %s" % data_path
     print "\trating data path - %s" % path_rating
     print "\tdocument data path - %s" % path_itemtext
     print "\tmin_rating: %d\n\tmax_length_document: %d\n\tmax_df: %.1f\n\tvocab_size: %d" \
           % (min_rating, max_length, max_df, vocab_size)
     print "\t{}".format(
         "split_ratio: %.1f" % split_ratio if splits_dir is None else "Splits: using pre-generated folds")
+    print "\tsaving preprocessed aux  to - %s" % aux_path
+    print "\tsaving preprocessed splits to - %s" % data_path
     print "==========================================================================================="
 
     R, D_all = data_factory.preprocess(
@@ -115,8 +118,7 @@ if do_preprocess:
     # Read training, test, and valid sets from the generated folds
     # data_factory.generate_train_valid_test_file_from_R(
     #     data_path, R, split_ratio)
-    num_folds = 5
-    for f in range(1, num_folds + 1):
+    for f in range(1, fold_num + 1):
         fold_res_dir = os.path.join(data_path, 'fold-{}'.format(f))
         if not os.path.exists(fold_res_dir):
             os.makedirs(fold_res_dir)
@@ -140,8 +142,8 @@ elif not grid_search:
     if lambda_v is None:
         sys.exit("Argument missing - lambda_v is required")
 
-    R, D_all = data_factory.load(aux_path)
-
+    # R, D_all = data_factory.load(aux_path)
+    R = data_factory.load_ratings(aux_path)
     # CNN params
     if 'cnn' in content_mode:
         emb_dim = args.emb_dim
@@ -149,6 +151,7 @@ elif not grid_search:
         max_length = args.max_length_document
         num_kernel_per_ws = args.num_kernel_per_ws
 
+        D_all = data_factory.load_documents(aux_path)
         CNN_X = D_all['X_sequence']
         vocab_size = len(D_all['X_vocab']) + 1
 
@@ -176,15 +179,16 @@ elif not grid_search:
     print "\tresult path - %s" % res_dir
 
     print "\tdimension: %d\n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tmax_iter: %d\n" % (
-    dimension, lambda_u, lambda_v, max_iter)
+        dimension, lambda_u, lambda_v, max_iter)
     print "\tContent: %s" % (
-        'Text and attributes' if content_mode == 'cnn_cae' else ('Text' if content_mode == 'cnn' else 'Attributes'))
+        'Text and attributes' if content_mode == 'cnn_cae' else
+        ('Text' if content_mode == 'cnn'
+         else ('Attributes' if content_mode == 'cae' else 'Vanilla matrix factorization')))
     if 'cnn' in content_mode:
         print "\tnum_kernel_per_ws: %d\n\tpretrained w2v data path - %s" % (num_kernel_per_ws, pretrain_w2v)
     print "==========================================================================================="
 
-    num_folds = 5
-    for f in range(1, num_folds + 1):
+    for f in range(1, fold_num + 1):
         train_user = data_factory.read_rating(
             os.path.join(data_path, 'fold-{}'.format(f), 'train-fold_{}-users.dat'.format(f)))
         train_item = data_factory.read_rating(
@@ -202,6 +206,8 @@ elif not grid_search:
         # valid_user = data_factory.read_rating(glob.glob(data_path + '/validation-fold_*-users.dat')[0])
         # test_user = data_factory.read_rating(glob.glob(data_path + '/test-fold_*-users.dat')[0])
 
+        print "==========================================================================================="
+        print ('Training on fold %d' %f)
         if content_mode == 'cnn_cae':
 
             ConvCAEMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
@@ -215,7 +221,6 @@ elif not grid_search:
                    lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
                    give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
                    train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
-
         elif content_mode == 'cae':
             # attributes dimension must be euall to u, and v vectors dimension
             CAEMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
@@ -243,13 +248,16 @@ if grid_search:
     max_iter = args.max_iter
     give_item_weight = args.give_item_weight
 
+    # Hyperparameters options
     lambda_u_list = [0.001, 0.01, 0.1]  # [0.001, 0.01, 0.1, 1, 10, 100, 1000]
     lambda_v_list = [10, 100, 1000]  # [0.01, 0.1, 1, 10, 100, 1000, 1000, 100000]
     confidence_mods = ['c']  # TODO: , 'user-dependant'] # c: constant, ud: user_dependent
     content_mods = ['mf']  # ['cnn_cae','cnn']
     att_dims = [10, 20, 100, 200]  # [10, 20, 50, 100, 200]
     num_config = len(list(itertools.product(lambda_u_list, lambda_v_list, confidence_mods, content_mods)))
-    num_config = (num_config * (len(att_dims) + 1)) / 2
+
+    if 'cae' or 'cnn_cae' in confidence_mods:
+        num_config = (num_config * (len(att_dims) + 1)) / 2
 
     # CNN params
     emb_dim = args.emb_dim
@@ -287,6 +295,7 @@ if grid_search:
         os.remove(os.path.join(fixed_res_dir, 'score.npy'))
 
     all_avg_results = {}
+    all_val_rmse = {}
     c = 1
     for lambda_u, lambda_v, confidence_mod, content_mode in itertools.product(lambda_u_list, lambda_v_list,
                                                                               confidence_mods, content_mods):
@@ -298,7 +307,7 @@ if grid_search:
                 if not os.path.exists(experiment_dir):
                     os.makedirs(experiment_dir)
                 print "==========================================================================================="
-                print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod %s" \
+                print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod: %s" \
                       % (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
                 print "\tContent: %s" % ('Text and item attributes\n\tAttributes latent vector dim %d' % att_dim)
 
@@ -318,7 +327,8 @@ if grid_search:
                 test_user = data_factory.read_rating(
                     os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
 
-                ConvCAEMF(max_iter=max_iter, res_dir=fixed_res_dir,
+                tr_eval, val_eval, te_eval = \
+                    ConvCAEMF(max_iter=max_iter, res_dir=fixed_res_dir,
                           state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
                           lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size,
                           init_W=init_W,
@@ -335,13 +345,14 @@ if grid_search:
                 avg_results = list(map(float, results[-1][1:]))
                 all_avg_results[experiment_cae] = avg_results
                 pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
+                all_val_rmse[experiment_cae] = [tr_eval, val_eval, te_eval]
 
         elif content_mode == 'cnn':
             experiment_dir = os.path.join(res_dir, experiment)
             if not os.path.exists(experiment):
                 os.makedirs(experiment)
             print "==========================================================================================="
-            print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod%s" \
+            print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod: %s" \
                   % (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
             # print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
             print "\tContent: %s" % 'Text'
@@ -357,7 +368,8 @@ if grid_search:
             test_user = data_factory.read_rating(
                 os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
 
-            ConvMF(max_iter=max_iter, res_dir=fixed_res_dir,
+            tr_eval, val_eval, te_eval = \
+                ConvMF(max_iter=max_iter, res_dir=fixed_res_dir,
                    state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
                    lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
                    give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
@@ -370,6 +382,9 @@ if grid_search:
             all_avg_results[experiment] = avg_results
             pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
 
+            #Stor rmse
+            all_val_rmse[experiment] = [tr_eval, val_eval, te_eval]
+
         elif content_mode == 'cae':
             for att_dim in att_dims:
                 experiment_cae = experiment + '-{}'.format(att_dim)
@@ -377,10 +392,10 @@ if grid_search:
                 if not os.path.exists(experiment_dir):
                     os.makedirs(experiment_dir)
                 print "==========================================================================================="
-                print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod %s" \
+                print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod: %s" \
                       % (c, num_config, lambda_u, lambda_v,
                          ('Constant' if confidence_mod == 'c' else 'user-dependent'))
-                print "\tContent: %s" % ('Text and item attributes\n\tAttributes latent vector dim %d' % att_dim)
+                print "\tContent: %s" % ('Attributes\n\tAttributes latent vector dim %d' % att_dim)
 
                 c += 1
                 # Read item's attributes
@@ -400,7 +415,7 @@ if grid_search:
                     os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
 
                 # attributes dimension must be equal to u, and v vectors dimension
-                CAEMF(max_iter=max_iter, res_dir=fixed_res_dir,
+                tr_eval, val_eval, te_eval = CAEMF(max_iter=max_iter, res_dir=fixed_res_dir,
                       state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
                       lambda_u=lambda_u, lambda_v=lambda_v, dimension=att_dim, att_dim=att_dim,
                       give_item_weight=give_item_weight,
@@ -416,13 +431,16 @@ if grid_search:
                 all_avg_results[experiment_cae] = avg_results
                 pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
 
+                #Stor rmse
+                all_val_rmse[experiment_cae] = [tr_eval, val_eval, te_eval]
+
         elif content_mode == 'mf':
 
             experiment_dir = os.path.join(res_dir, experiment)
             if not os.path.exists(experiment):
                 os.makedirs(experiment)
             print "==========================================================================================="
-            print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod%s" \
+            print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod: %s" \
                   % (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
             # print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
             print "\tContent: %s" % 'Vanilla Matrix factorization'
@@ -438,7 +456,9 @@ if grid_search:
             test_user = data_factory.read_rating(
                 os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
 
-            MF(max_iter=max_iter, res_dir=fixed_res_dir, state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
+            tr_eval, val_eval, te_eval =\
+                MF(max_iter=max_iter, res_dir=fixed_res_dir,
+               state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
                lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension,
                give_item_weight=give_item_weight,
                train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
@@ -451,5 +471,10 @@ if grid_search:
             all_avg_results[experiment] = avg_results
             pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
 
+            all_val_rmse[experiment]=[tr_eval, val_eval, te_eval]
+
     print 'Writing avg results for all sets of configuratoins to %s' % os.path.join(res_dir, 'all_avg_results_tanh.dat')
     pickl.dump(all_avg_results, open(os.path.join(res_dir, 'all_avg_results_tanh.dat'), "wb"))
+    print 'Writing rmse for all sets of configuratoins to %s' % os.path.join(res_dir, 'all_rmse.dat')
+    pickl.dump(all_val_rmse, open(os.path.join(res_dir, 'all_rmse.dat'), "wb"))
+

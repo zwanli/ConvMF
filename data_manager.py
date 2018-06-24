@@ -29,6 +29,15 @@ class Data_Factory():
         print "Load preprocessed document data - %s" % (path + "/document.all")
         return R, D_all
 
+    def load_ratings(self, path):
+        R = pickl.load(open(path + "/ratings.all", "rb"))
+        print "Load preprocessed rating data - %s" % (path + "/ratings.all")
+        return R
+
+    def load_documents(self, path):
+        D_all = pickl.load(open(path + "/document.all", "rb"))
+        print "Load preprocessed document data - %s" % (path + "/document.all")
+        return D_all
     def save(self, path, R, D_all):
         if not os.path.exists(path):
             os.makedirs(path)
