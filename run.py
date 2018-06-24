@@ -249,10 +249,10 @@ if grid_search:
     give_item_weight = args.give_item_weight
 
     # Hyperparameters options
-    lambda_u_list = [0.001, 0.01, 0.1]  # [0.001, 0.01, 0.1, 1, 10, 100, 1000]
-    lambda_v_list = [10, 100, 1000]  # [0.01, 0.1, 1, 10, 100, 1000, 1000, 100000]
+    lambda_u_list = [0.01, 0.1,0.10]  # [0.001, 0.01, 0.1, 1, 10, 100, 1000]
+    lambda_v_list = [0.01, 0.1, 10, 100, 1000]  # [0.01, 0.1, 1, 10, 100, 1000, 1000, 100000]
     confidence_mods = ['c']  # TODO: , 'user-dependant'] # c: constant, ud: user_dependent
-    content_mods = ['mf']  # ['cnn_cae','cnn']
+    content_mods = ['mf','cnn_cae','cnn','cae']  # ['cnn_cae','cnn']
     att_dims = [10, 20, 100, 200]  # [10, 20, 50, 100, 200]
     num_config = len(list(itertools.product(lambda_u_list, lambda_v_list, confidence_mods, content_mods)))
 
