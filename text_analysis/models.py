@@ -14,8 +14,8 @@ np.random.seed(1337)
 
 from keras.callbacks import EarlyStopping
 from keras.layers.convolutional import Conv2D, MaxPooling2D
-from keras.layers.core import Reshape, Flatten, Dropout
-from keras.layers import Input, Embedding, Dense, concatenate
+from keras.layers.core import Reshape, Flatten, Dropout, Activation
+from keras.layers import Input, Embedding, Dense, concatenate, BatchNormalization, add
 from keras.models import Model, Sequential
 from keras.preprocessing import sequence
 from keras.utils import plot_model
@@ -38,6 +38,64 @@ K.tensorflow_backend.set_session(tf.Session(config=config))
 
 # from keras.utils import plot_model
 
+
+def relu(x):
+    return Activation('relu')(x)
+
+def neck(nip,nop,stride):
+    def unit(x):
+        nBottleneckPlane = int(nop / 4)
+        nbp = nBottleneckPlane
+
+        if nip==nop:
+            ident = x
+
+            x = BatchNormalization(axis=-1)(x)
+            x = relu(x)
+            x = Conv2D(nbp,1,1,
+            subsample=(stride,stride))(x)
+
+            x = BatchNormalization(axis=-1)(x)
+            x = relu(x)
+            x = Conv2D(nbp,3,3,border_mode='same')(x)
+
+            x = BatchNormalization(axis=-1)(x)
+            x = relu(x)
+            x = Conv2D(nop,1,1)(x)
+
+            out = add([ident,x])
+        else:
+            x = BatchNormalization(axis=-1)(x)
+            x = relu(x)
+            ident = x
+
+            x = Conv2D(nbp,1,1,
+            subsample=(stride,stride))(x)
+
+            x = BatchNormalization(axis=-1)(x)
+            x = relu(x)
+            x = Conv2D(nbp,3,3,border_mode='same')(x)
+
+            x = BatchNormalization(axis=-1)(x)
+            x = relu(x)
+            x = Conv2D(nop,1,1)(x)
+
+            ident = Conv2D(nop,1,1,
+            subsample=(stride,stride))(ident)
+
+            out = add([ident,x])
+        return out
+    return unit
+
+def cake(nip,nop,layers,std):
+    def unit(x):
+        for i in range(layers):
+            if i==0:
+                x = neck(nip,nop,std)(x)
+            else:
+                x = neck(nop,nop,1)(x)
+        return x
+    return unit
 
 class CNN_CAE_module():
     '''
@@ -80,7 +138,7 @@ class CNN_CAE_module():
         flatten_ = []
         for i in filter_lengths:
             model_internal = Sequential()
-            # model_internal.add(Convolution2D(
+            # model_internal.add(Conv2D(
             #     nb_filters, i, emb_dim, activation="relu"))
             model_internal.add(Conv2D(nb_filters, (i, emb_dim), activation="relu",
                                       name='conv2d_' + str(i), input_shape=(self.max_len, emb_dim, 1)))
@@ -124,6 +182,8 @@ class CNN_CAE_module():
             contractive = lam * K.sum(dh ** 2 * K.sum(W ** 2, axis=1), axis=1)
 
             return mse + contractive
+
+        # combine the outputs of boths modules
 
         joint_output = concatenate([dropout, encoded], name='concatenated_output')
 
@@ -263,7 +323,7 @@ class CNN_module():
         flatten_ = []
         for i in filter_lengths:
             model_internal = Sequential()
-            # model_internal.add(Convolution2D(
+            # model_internal.add(Conv2D(
             #     nb_filters, i, emb_dim, activation="relu"))
             model_internal.add(Conv2D(nb_filters, (i, emb_dim), activation="relu",
                                       name='conv2d_' + str(i), input_shape=(self.max_len, emb_dim, 1)))

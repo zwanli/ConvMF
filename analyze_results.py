@@ -143,7 +143,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 def read_rmse(path):
-    results = pickl.load(open(path + "/all_rmse.dat", "rb"))
+    results = pickl.load(open(path, "rb"))
     header = ['train','validation','test']
     df = pd.DataFrame.from_records(results.values(), index=results.keys(), columns=header)
     df2 = df.sort_values(by=['validation','test','train'])
@@ -152,7 +152,7 @@ def read_rmse(path):
 
 def read_metrics(path):
     # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/grid_search'
-    R = pickl.load(open(path + "/all_avg_results_tanh.dat", "rb"))
+    R = pickl.load(open(path, "rb"))
     recall_breaks = [5, 10] + list(xrange(20, 201, 20))
     mrr_breaks = [10]
     ndcg_breaks = [5, 10]
@@ -165,17 +165,28 @@ def read_metrics(path):
     df.plot()
     # plt.show()
     df2 = df.loc[:, 'MRR@10':]
-    df2 = df2.sort_values(by=['nDCG@5', 'nDCG@10', 'MRR@10'])
+    df2 = df2.sort_values(by=['nDCG@5', 'nDCG@10', 'MRR@10'],ascending=False)
     df3 = df2.sort_index()
     df4 = df3.idxmax(axis=0, skipna=True)
     print(df2)
 
 if __name__ == '__main__':
+    # print "==========================================================================================="
+    # print('in-matrix results:')
+    # #in-matrix path
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_rmse.dat'
+    # read_rmse(path)
+    # #in-matrix path
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_avg_res.dat'
+    # read_metrics(path)
 
-    path = '/home/zaher/data/Extended_ctr/convmf/dummy/results'
+    print "==========================================================================================="
+    print('outof-matrix results:')
+    #outof-matrix path
+    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/outofmatrix/all_rmse.dat'
     read_rmse(path)
-
-    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_cae'
-    read_metrics()
-
+    #outof-matrix path
+    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/outofmatrix/all_avg_res.dat'
+    read_metrics(path)
+    print "==========================================================================================="
 

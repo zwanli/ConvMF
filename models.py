@@ -30,6 +30,8 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     PREV_LOSS = 1e-50
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
+
+
     if not os.path.exists(state_log_dir):
         os.makedirs(state_log_dir)
     f1 = open(state_log_dir + '/state.log', 'w')
@@ -118,6 +120,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
         if (loss > PREV_LOSS):
+            count = 0
             print ("likelihood is increasing!")
             cnn_cae_module.save_model(res_dir + '/CNN_CAE_weights.hdf5')
             np.savetxt(res_dir + '/final-U.dat', U)
@@ -127,6 +130,8 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
         else:
             count = count + 1
         # if (val_eval < pre_val_eval):
+        # count = 0
+
         #     cnn_cae_module.save_model(res_dir + '/CNN_CAE_weights.hdf5')
         #     np.savetxt(res_dir + '/final-U.dat', U)
         #     np.savetxt(res_dir + '/final-V.dat', V)
@@ -254,6 +259,8 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
         if (loss > PREV_LOSS):
+            count = 0
+
             print ("likelihood is increasing!")
             cnn_module.save_model(res_dir + '/CNN_weights.hdf5')
             np.savetxt(res_dir + '/final-U.dat', U)
@@ -263,6 +270,8 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
         else:
             count = count + 1
         # if (val_eval < pre_val_eval):
+        # count = 0
+
         #     cnn_module.save_model(res_dir + '/CNN_weights.hdf5')
         #     np.savetxt(res_dir + '/final-U.dat', U)
         #     np.savetxt(res_dir + '/final-V.dat', V)
@@ -284,27 +293,6 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
         iteration += 1
     f1.close()
     return tr_eval, val_eval, te_eval
-
-def get_model_memory_usage(batch_size, model):
-    import numpy as np
-    from keras import backend as K
-
-    shapes_mem_count = 0
-    for l in model.layers:
-        single_layer_mem = 1
-        for s in l.output_shape:
-            if s is None:
-                continue
-            single_layer_mem *= s
-        shapes_mem_count += single_layer_mem
-
-    trainable_count = np.sum([K.count_params(p) for p in set(model.trainable_weights)])
-    non_trainable_count = np.sum([K.count_params(p) for p in set(model.non_trainable_weights)])
-
-    total_memory = 4.0 * batch_size * (shapes_mem_count + trainable_count + non_trainable_count)
-    gbytes = np.round(total_memory / (1024.0 ** 3), 3)
-    return gbytes
-
 
 def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
               R, attributes_X, give_item_weight=False,
@@ -409,6 +397,8 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
 
         if (loss > PREV_LOSS):
+            count = 0
+
             print ("likelihood is increasing!")
             cae_module.save_model(res_dir + '/CAE_weights.hdf5')
             np.savetxt(res_dir + '/final-U.dat', U)
@@ -419,6 +409,7 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
             count = count + 1
 
         # if (val_eval < pre_val_eval):
+        #     count = 0
         #     cae_module.save_model(res_dir + '/CAE_weights.hdf5')
         #     np.savetxt(res_dir + '/final-U.dat', U)
         #     np.savetxt(res_dir + '/final-V.dat', V)
@@ -538,12 +529,16 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
 
         if (loss > PREV_LOSS):
+            count = 0
+
             print ("likelihood is increasing!")
             np.savetxt(res_dir + '/final-U.dat', U)
             np.savetxt(res_dir + '/final-V.dat', V)
         else:
             count = count + 1
+
         # if (val_eval < pre_val_eval):
+        #     count = 0
         #     np.savetxt(res_dir + '/final-U.dat', U)
         #     np.savetxt(res_dir + '/final-V.dat', V)
         # else:

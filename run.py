@@ -198,6 +198,8 @@ elif not grid_search:
         test_user = data_factory.read_rating(
             os.path.join(data_path, 'fold-{}'.format(f), 'test-fold_{}-users.dat'.format(f)))
 
+
+
         fold_res_dir = os.path.join(res_dir, 'fold-{}'.format(f))
         if not os.path.exists(fold_res_dir):
             os.makedirs(fold_res_dir)
@@ -297,6 +299,25 @@ if grid_search:
     all_avg_results = {}
     all_val_rmse = {}
     c = 1
+
+    # num_folds = 5
+    # for f in range(1,num_folds+1):
+    fold = 1
+    train_user = data_factory.read_rating(
+        os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
+    train_item = data_factory.read_rating(
+        os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
+    valid_user = data_factory.read_rating(
+        os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
+    test_user = data_factory.read_rating(
+        os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
+
+    print('Fold paths:')
+    print(os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
+    print(os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
+    print(os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
+    print(os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
+
     for lambda_u, lambda_v, confidence_mod, content_mode in itertools.product(lambda_u_list, lambda_v_list,
                                                                               confidence_mods, content_mods):
         experiment = '{}-{}-{}-{}'.format(lambda_u, lambda_v, confidence_mod, content_mode)
@@ -315,17 +336,7 @@ if grid_search:
                 # Read item's attributes
                 labels, features_matrix = data_factory.read_attributes(os.path.join(aux_path + 'paper_attributes.tsv'))
 
-                # num_folds = 5
-                # for f in range(1,num_folds+1):
-                fold = 1
-                train_user = data_factory.read_rating(
-                    os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
-                train_item = data_factory.read_rating(
-                    os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
-                valid_user = data_factory.read_rating(
-                    os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
-                test_user = data_factory.read_rating(
-                    os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
+
 
                 tr_eval, val_eval, te_eval = \
                     ConvCAEMF(max_iter=max_iter, res_dir=fixed_res_dir,
@@ -358,15 +369,15 @@ if grid_search:
             print "\tContent: %s" % 'Text'
 
             c += 1
-            fold = 1
-            train_user = data_factory.read_rating(
-                os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
-            train_item = data_factory.read_rating(
-                os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
-            valid_user = data_factory.read_rating(
-                os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
-            test_user = data_factory.read_rating(
-                os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
+            # fold = 1
+            # train_user = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
+            # train_item = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
+            # valid_user = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
+            # test_user = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
 
             tr_eval, val_eval, te_eval = \
                 ConvMF(max_iter=max_iter, res_dir=fixed_res_dir,
@@ -402,17 +413,17 @@ if grid_search:
                 labels, features_matrix = data_factory.read_attributes(
                     os.path.join(aux_path + 'paper_attributes.tsv'))
 
-                # num_folds = 5
-                # for f in range(1,num_folds+1):
-                fold = 1
-                train_user = data_factory.read_rating(
-                    os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
-                train_item = data_factory.read_rating(
-                    os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
-                valid_user = data_factory.read_rating(
-                    os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
-                test_user = data_factory.read_rating(
-                    os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
+                # # num_folds = 5
+                # # for f in range(1,num_folds+1):
+                # fold = 1
+                # train_user = data_factory.read_rating(
+                #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
+                # train_item = data_factory.read_rating(
+                #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
+                # valid_user = data_factory.read_rating(
+                #     os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
+                # test_user = data_factory.read_rating(
+                #     os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
 
                 # attributes dimension must be equal to u, and v vectors dimension
                 tr_eval, val_eval, te_eval = CAEMF(max_iter=max_iter, res_dir=fixed_res_dir,
@@ -446,15 +457,15 @@ if grid_search:
             print "\tContent: %s" % 'Vanilla Matrix factorization'
 
             c += 1
-            fold = 1
-            train_user = data_factory.read_rating(
-                os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
-            train_item = data_factory.read_rating(
-                os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
-            valid_user = data_factory.read_rating(
-                os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
-            test_user = data_factory.read_rating(
-                os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
+            # fold = 1
+            # train_user = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
+            # train_item = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
+            # valid_user = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
+            # test_user = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
 
             tr_eval, val_eval, te_eval =\
                 MF(max_iter=max_iter, res_dir=fixed_res_dir,
