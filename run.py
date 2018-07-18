@@ -62,7 +62,7 @@ parser.add_argument("-g", "--give_item_weight", type=bool,
                     help="Use item-specific weight, check Donghyun Kim '17 paper |True or False  (default = False)",
                     default=False)
 parser.add_argument("-k", "--dimension", type=int,
-                    help="Size of latent dimension for users and items (default: 200)", default=200)
+                    help="Dimension of users and items latent vector(default: 200)", default=200)
 parser.add_argument("-u", "--lambda_u", type=float,
                     help="Value of user regularizer")
 parser.add_argument("-v", "--lambda_v", type=float,
@@ -74,7 +74,7 @@ parser.add_argument("-w", "--num_kernel_per_ws", type=int,
 parser.add_argument("--content_mode", type=str, choices=['cnn', 'cnn_cae', 'cae', 'mf'],
                     help="Content to be used, CNN: textual content, CAE: auxiliary item features", default='cnn')
 parser.add_argument("--att_dim", type=int,
-                    help="Size of latent dimension for attributes vectors (default: 50)", default=50)
+                    help="Dimension of attributes latent vector (default: 50)", default=50)
 parser.add_argument("--grid_search", type=bool,
                     help="Run grid search to tune the hyperparameters (default = False)", default=False)
 

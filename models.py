@@ -12,7 +12,7 @@ import math
 import numpy as np
 from text_analysis.models import CNN_CAE_module
 from text_analysis.models import CNN_module
-from text_analysis.models import CAE_module
+from text_analysis.models import CAE_module, CNN_CAE_transfer_module
 
 
 def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
@@ -50,8 +50,12 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
 
     pre_val_eval = 1e10
 
-    cnn_cae_module = CNN_CAE_module(dimension, vocab_size, dropout_rate,
-                                emb_dim, max_len, num_kernel_per_ws, init_W,cae_N_hidden=att_dim, nb_features=num_features)
+    # cnn_cae_module = CNN_CAE_module(dimension, vocab_size, dropout_rate,
+    #                             emb_dim, max_len, num_kernel_per_ws, init_W,cae_N_hidden=att_dim, nb_features=num_features)
+    cnn_cae_module = CNN_CAE_transfer_module(dimension, vocab_size, dropout_rate,
+                                    emb_dim, max_len, num_kernel_per_ws, init_W, cae_N_hidden=att_dim,
+                                    nb_features=num_features)
+
     theta = cnn_cae_module.get_projection_layer(CNN_X, attributes_X)
     np.random.seed(133)
     U = np.random.uniform(size=(num_user, dimension))
