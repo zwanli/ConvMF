@@ -628,7 +628,7 @@ class CNN_CAE_transfer_module():
         # plot_model(model, to_file='model.png')
 
         self.model = model
-        plot_model(model, to_file='model_cnn_cae_transfer.png',show_shapes=True)
+        #plot_model(model, to_file='model_cnn_cae_transfer.png',show_shapes=True)
 
 
     def load_model(self, model_path):

@@ -146,7 +146,7 @@ def read_rmse(path):
     results = pickl.load(open(path, "rb"))
     header = ['train','validation','test']
     df = pd.DataFrame.from_records(results.values(), index=results.keys(), columns=header)
-    df2 = df.sort_values(by=['validation','test','train'])
+    df2 = df.sort_values(by=['validation'])
     # df2.sort_index(inplace=True)
     print(df2)
 
@@ -165,7 +165,7 @@ def read_metrics(path):
     df.plot()
     # plt.show()
     df2 = df.loc[:, 'MRR@10':]
-    df2 = df2.sort_values(by=['nDCG@5', 'nDCG@10', 'MRR@10'],ascending=False)
+    df2 = df2.sort_values(by=['MRR@10'],ascending=False)
     df3 = df2.sort_index()
     df4 = df3.idxmax(axis=0, skipna=True)
     print(df2)
@@ -174,10 +174,12 @@ if __name__ == '__main__':
     print "==========================================================================================="
     print('in-matrix results:')
     #in-matrix path
-    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_rmse.dat'
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_rmse.dat'
+    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_19_7-inmatrix-trasnfer/all_rmse.dat'
     read_rmse(path)
     #in-matrix path
-    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_avg_res.dat'
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_avg_res.dat'
+    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_19_7-inmatrix-trasnfer/all_avg_results_tanh.dat'
     read_metrics(path)
 
     # print "==========================================================================================="

@@ -6,13 +6,45 @@ Created on Dec 8, 2015
 
 import os
 import time
-
+import copy
 from util import eval_RMSE
 import math
 import numpy as np
 from text_analysis.models import CNN_CAE_module
 from text_analysis.models import CNN_module
 from text_analysis.models import CAE_module, CNN_CAE_transfer_module
+
+
+def get_rated_items_idx_map(train_R_I):
+    '''
+
+    :param train_R_I:
+    :return: 1. list of rated items idx.
+     2. A dict that maps the original item id, to a new one (it's the same in case of in-matrix splits,
+    and a new one in the case of out-of-matrix splits.
+
+    '''
+
+    items_idx = set(np.concatenate(train_R_I).ravel().tolist())
+    item_idx_to_new_id_map = {}
+    for i,k in enumerate(items_idx):
+        item_idx_to_new_id_map[i] = k
+    return list(items_idx), item_idx_to_new_id_map
+
+
+def map_theta_to_V(theta,id_to_original_map, m,k ):
+    '''
+    This function works as gather
+
+    :param theta: (num_of_rated_items, embed_dim) array
+    :return: (num_item, embed_dim) array. It's the same input theta in the case of in-matrix, and an expanded one with
+    zeros rows in the case of out-of-matrix.
+    '''
+    expanded_theta = np.zeros((m,k),dtype=np.float)
+    for i in range(theta.shape[0]):
+        expanded_theta[id_to_original_map[i]]=theta[i]
+
+    return expanded_theta
 
 
 def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
@@ -41,6 +73,26 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     Test_R = test_user[1]
     Valid_R = valid_user[1]
 
+
+    # # make a deep copy of text and attributes
+    # CNN_X_initial = copy.deepcopy(CNN_X)
+    # attributes_X_initial = np.copy(attributes_X)
+
+    '''Add a mapper in the case of out-of-matrix'''
+    #items_idx is the items ids from the training set
+    items_idx, items_to_new_id_map = get_rated_items_idx_map(train_user[0])
+    if len(items_idx) != num_item:
+        print('It apears to be out-of-matrix split')
+        is_out_of_matrix= True
+        CNN_X_eval =  [ CNN_X[i] for i,t in enumerate(CNN_X) if i not in items_idx]
+        CNN_X =  [ CNN_X[i] for i in items_idx]
+
+        attributes_X_eval = np.delete(attributes_X,items_idx,0)
+        attributes_X = attributes_X[items_idx]
+        items_idx_eval = list(set.difference(set(range(num_item)),set(items_idx)))
+
+
+
     if give_item_weight is True:
         item_weight = np.array([math.sqrt(len(i))
                                 for i in Train_R_J], dtype=float)
@@ -57,6 +109,8 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
                                     nb_features=num_features)
 
     theta = cnn_cae_module.get_projection_layer(CNN_X, attributes_X)
+    if is_out_of_matrix:
+        theta = map_theta_to_V(theta,items_to_new_id_map,num_item,emb_dim)
     np.random.seed(133)
     U = np.random.uniform(size=(num_user, dimension))
     V = theta
@@ -108,15 +162,25 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
 
         loss = loss + np.sum(sub_loss)
         seed = np.random.randint(100000)
-        history = cnn_cae_module.train(CNN_X, V, item_weight, seed, att_train=attributes_X)
+        history = cnn_cae_module.train(CNN_X, V[items_idx], item_weight[items_idx], seed, att_train=attributes_X)
         theta = cnn_cae_module.get_projection_layer(CNN_X, attributes_X)
+        if is_out_of_matrix:
+            theta = map_theta_to_V(theta, items_to_new_id_map, num_item, emb_dim)
         cnn_loss = history.history['loss'][-1]
 
         loss = loss - 0.5 * lambda_v * cnn_loss * num_item
 
         tr_eval = eval_RMSE(Train_R_I, U, V, train_user[0])
-        val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
-        te_eval = eval_RMSE(Test_R, U, V, test_user[0])
+        if is_out_of_matrix:
+            theta_eval = cnn_cae_module.get_projection_layer(CNN_X_eval,attributes_X_eval)
+            V_eval = np.copy(V)
+            V_eval[items_idx_eval]=theta_eval
+            val_eval = eval_RMSE(Valid_R, U, V_eval, valid_user[0])
+            te_eval = eval_RMSE(Test_R, U, V_eval, test_user[0])
+
+        else:
+            val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
+            te_eval = eval_RMSE(Test_R, U, V, test_user[0])
 
         toc = time.time()
         elapsed = toc - tic
@@ -156,15 +220,15 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
         PREV_LOSS = loss
         iteration += 1
     f1.close()
-    o = cnn_cae_module.get_intermediate_output(CNN_X, attributes_X)
-    np.savetxt('cnn_cae_tanh.csv', o, fmt='%1.4f',delimiter=',')
+    # o = cnn_cae_module.get_intermediate_output(CNN_X, attributes_X)
+    # np.savetxt('cnn_cae_tanh.csv', o, fmt='%1.4f',delimiter=',')
     return tr_eval, val_eval, te_eval
 
 def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user,
            R, CNN_X, vocab_size, init_W=None, give_item_weight=False,
            max_iter=50, lambda_u=1, lambda_v=100, dimension=50,
            dropout_rate=0.2, emb_dim=200, max_len=300, num_kernel_per_ws=100):
-    # explicit setting
+    # explicit settinggit
     a = 1
     b = 0.01
 
