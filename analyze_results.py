@@ -171,24 +171,24 @@ def read_metrics(path):
     print(df2)
 
 if __name__ == '__main__':
-    print "==========================================================================================="
-    print('in-matrix results:')
-    #in-matrix path
-    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_rmse.dat'
-    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_19_7-inmatrix-trasnfer/all_rmse.dat'
-    read_rmse(path)
-    #in-matrix path
-    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_avg_res.dat'
-    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_19_7-inmatrix-trasnfer/all_avg_results_tanh.dat'
-    read_metrics(path)
-
     # print "==========================================================================================="
-    # print('outof-matrix results:')
-    # #outof-matrix path
-    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/outofmatrix/all_rmse.dat'
+    # print('in-matrix results:')
+    # #in-matrix path
+    # # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_rmse.dat'
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_19_7-inmatrix-trasnfer/all_rmse.dat'
     # read_rmse(path)
-    # #outof-matrix path
-    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/outofmatrix/all_avg_res.dat'
+    # #in-matrix path
+    # # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_avg_res.dat'
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_19_7-inmatrix-trasnfer/all_avg_results_tanh.dat'
     # read_metrics(path)
-    # print "==========================================================================================="
+
+    print "==========================================================================================="
+    print('outof-matrix results:')
+    #outof-matrix path
+    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/outofmatrix/all_rmse.dat'
+    read_rmse(path)
+    #outof-matrix path
+    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/outofmatrix/all_avg_res.dat'
+    read_metrics(path)
+    print "==========================================================================================="
 
