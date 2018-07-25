@@ -97,9 +97,10 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     '''Add a mapper in the case of out-of-matrix'''
     #items_idx is the items ids from the training set
     items_idx, items_to_new_id_map = get_rated_items_idx_map(train_user[0])
+    is_out_of_matrix = False
     if len(items_idx) != num_item:
         print('It apears to be out-of-matrix split with {} items not in train set'.format(num_item-len(items_idx)))
-        is_out_of_matrix= True
+        is_out_of_matrix = True
         CNN_X_eval =  [ CNN_X[i] for i,t in enumerate(CNN_X) if i not in items_idx]
         CNN_X =  [ CNN_X[i] for i in items_idx]
 
@@ -128,7 +129,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
 
     theta = cnn_cae_module.get_projection_layer(CNN_X, attributes_X)
     if is_out_of_matrix:
-        theta = map_theta_to_V(theta,items_to_new_id_map,num_item,emb_dim)
+        theta = map_theta_to_V(theta,items_to_new_id_map,num_item,dimension)
     np.random.seed(133)
     U = np.random.uniform(size=(num_user, dimension))
     V = theta
@@ -184,7 +185,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
                                        seed=seed,callbacks_list=callbacks_list)
         theta = cnn_cae_module.get_projection_layer(CNN_X, attributes_X)
         if is_out_of_matrix:
-            theta = map_theta_to_V(theta, items_to_new_id_map, num_item, emb_dim)
+            theta = map_theta_to_V(theta, items_to_new_id_map, num_item, dimension)
         cnn_loss = history.history['loss'][-1]
 
         loss = loss - 0.5 * lambda_v * cnn_loss * num_item
@@ -219,15 +220,19 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
         if (loss > PREV_LOSS):
-            count = 0
+            #count = 0
             print ("likelihood is increasing!")
             cnn_cae_module.save_model(res_dir + '/CNN_CAE_weights.hdf5')
             np.savetxt(res_dir + '/final-U.dat', U)
             if is_out_of_matrix:
+                # write V, and theta after calculating the latent vectors for items in validation and test sets
                 np.savetxt(res_dir + '/final-V.dat', V_eval)
+                temp_theta = np.copy(theta)
+                temp_theta[items_idx_eval] = theta_eval
+                np.savetxt(res_dir + '/theta.dat', temp_theta)
             else:
                 np.savetxt(res_dir + '/final-V.dat', V)
-            np.savetxt(res_dir + '/theta.dat', theta)
+                np.savetxt(res_dir + '/theta.dat', theta)
 
         else:
             count = count + 1
@@ -297,6 +302,7 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
     '''Add a mapper in the case of out-of-matrix'''
     # items_idx is the items ids from the training set
     items_idx, items_to_new_id_map = get_rated_items_idx_map(train_user[0])
+    is_out_of_matrix = False
     if len(items_idx) != num_item:
         print('It apears to be out-of-matrix split with {} items not in train set'.format(num_item-len(items_idx)))
         is_out_of_matrix = True
@@ -409,13 +415,17 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
         if (loss > PREV_LOSS):
-            count = 0
+            #count = 0
 
             print ("likelihood is increasing!")
             cnn_module.save_model(res_dir + '/CNN_weights.hdf5')
             np.savetxt(res_dir + '/final-U.dat', U)
             if is_out_of_matrix:
+                # write V, and theta after calculating the latent vectors for items in validation and test sets
                 np.savetxt(res_dir + '/final-V.dat', V_eval)
+                temp_theta = np.copy(theta)
+                temp_theta[items_idx_eval] = theta_eval
+                np.savetxt(res_dir + '/theta.dat', temp_theta)
             else:
                 np.savetxt(res_dir + '/final-V.dat', V)
             np.savetxt(res_dir + '/theta.dat', theta)
@@ -484,6 +494,19 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
     else:
         no_validation = True
 
+    '''Add a mapper in the case of out-of-matrix'''
+    #items_idx is the items ids from the training set
+    items_idx, items_to_new_id_map = get_rated_items_idx_map(train_user[0])
+    is_out_of_matrix = False
+    if len(items_idx) != num_item:
+        print('It apears to be out-of-matrix split with {} items not in train set'.format(num_item-len(items_idx)))
+        is_out_of_matrix = True
+        attributes_X_eval = np.delete(attributes_X,items_idx,0)
+        attributes_X = attributes_X[items_idx]
+
+        #items that belong to test+validation sets.
+        items_idx_eval = list(set.difference(set(range(num_item)),set(items_idx)))
+
     if give_item_weight is True:
         item_weight = np.array([math.sqrt(len(i))
                                 for i in Train_R_J], dtype=float)
@@ -495,6 +518,8 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
     cae_module = CAE_module(dimension,cae_N_hidden=att_dim, nb_features=num_features)
     theta = cae_module.get_projection_layer(attributes_X)
+    if is_out_of_matrix:
+        theta = map_theta_to_V(theta,items_to_new_id_map,num_item,dimension)
     np.random.seed(133)
     U = np.random.uniform(size=(num_user, dimension))
     V = theta
@@ -549,16 +574,32 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
         seed = np.random.randint(100000)
         history = cae_module.train(V, item_weight, seed, att_train=attributes_X)
         theta = cae_module.get_projection_layer(attributes_X)
+        if is_out_of_matrix:
+            theta = map_theta_to_V(theta, items_to_new_id_map, num_item, dimension)
         cae_loss = history.history['loss'][-1]
 
         loss = loss - 0.5 * lambda_v * cae_loss * num_item
 
         tr_eval = eval_RMSE(Train_R_I, U, V, train_user[0])
-        if not no_validation:
-            val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
+
+        if is_out_of_matrix:
+            theta_eval = cae_module.get_projection_layer( attributes_X_eval)
+            V_eval = np.copy(V)
+            V_eval[items_idx_eval] = theta_eval
+            if not no_validation:
+                val_eval = eval_RMSE(Valid_R, U, V_eval, valid_user[0])
+
+            else:
+                val_eval = -1
+            te_eval = eval_RMSE(Test_R, U, V_eval, test_user[0])
+
         else:
-            val_eval = -1
-        te_eval = eval_RMSE(Test_R, U, V, test_user[0])
+            if not no_validation:
+                val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
+            else:
+                val_eval = -1
+            te_eval = eval_RMSE(Test_R, U, V, test_user[0])
+
         logger_tb.log_scalar('train_rmse', tr_eval, iteration)
         if not no_validation:
             logger_tb.log_scalar('evale_rmse', val_eval, iteration)
@@ -571,12 +612,19 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
 
         if (loss > PREV_LOSS):
-            count = 0
+            #count = 0
 
             print ("likelihood is increasing!")
             cae_module.save_model(res_dir + '/CAE_weights.hdf5')
             np.savetxt(res_dir + '/final-U.dat', U)
-            np.savetxt(res_dir + '/final-V.dat', V)
+            if is_out_of_matrix:
+                # write V, and theta after calculating the latent vectors for items in validation and test sets
+                np.savetxt(res_dir + '/final-V.dat', V_eval)
+                temp_theta = np.copy(theta)
+                temp_theta[items_idx_eval] = theta_eval
+                np.savetxt(res_dir + '/theta.dat', temp_theta)
+            else:
+                np.savetxt(res_dir + '/final-V.dat', V)
             np.savetxt(res_dir + '/theta.dat', theta)
 
         else:
@@ -725,7 +773,7 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
 
         if (loss > PREV_LOSS):
-            count = 0
+            #count = 0
 
             print ("likelihood is increasing!")
             np.savetxt(res_dir + '/final-U.dat', U)
