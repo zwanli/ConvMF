@@ -195,7 +195,7 @@ elif not grid_search:
         train_item = data_factory.read_rating(
             os.path.join(data_path, 'fold-{}'.format(f), 'train-fold_{}-items.dat'.format(f)))
         # in case of training only on training and test sets
-        if os._exists(os.path.join(data_path, 'fold-{}'.format(f), 'validation-fold_{}-users.dat'.format(f))):
+        if os.path.exists(os.path.join(data_path, 'fold-{}'.format(f), 'validation-fold_{}-users.dat'.format(f))):
             valid_user = data_factory.read_rating(
                 os.path.join(data_path, 'fold-{}'.format(f), 'validation-fold_{}-users.dat'.format(f)))
         else:

@@ -85,6 +85,8 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     Train_R_I = train_user[1]
     Train_R_J = train_item[1]
     Test_R = test_user[1]
+
+    no_validation = False
     if valid_user:
         Valid_R = valid_user[1]
     else:
@@ -197,7 +199,6 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
             V_eval[items_idx_eval]=theta_eval
             if not no_validation:
                 val_eval = eval_RMSE(Valid_R, U, V_eval, valid_user[0])
-
             else:
                 val_eval = -1
             te_eval = eval_RMSE(Test_R, U, V_eval, test_user[0])
@@ -211,8 +212,9 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
 
         logger_tb.log_scalar('train_rmse',tr_eval,iteration)
         if not no_validation:
-            logger_tb.log_scalar('evale_rmse',val_eval,iteration)
+            logger_tb.log_scalar('eval_rmse',val_eval,iteration)
         logger_tb.log_scalar('test_rmse',te_eval,iteration)
+        logger_tb.writer.flush()
 
         toc = time.time()
         elapsed = toc - tic
@@ -295,6 +297,8 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
     Train_R_I = train_user[1]
     Train_R_J = train_item[1]
     Test_R = test_user[1]
+
+    no_validation = False
     if valid_user:
         Valid_R = valid_user[1]
     else:
@@ -378,7 +382,7 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
 
         loss = loss + np.sum(sub_loss)
         seed = np.random.randint(100000)
-        history = cnn_module.train(CNN_X, V[items_idx], item_weight[items_idx], seed)
+        history = cnn_module.train(CNN_X, V[items_idx], item_weight[items_idx], seed,callbacks_list)
         theta = cnn_module.get_projection_layer(CNN_X)
         if is_out_of_matrix:
             theta = map_theta_to_V(theta, items_to_new_id_map, num_item, emb_dim)
@@ -406,8 +410,9 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
             te_eval = eval_RMSE(Test_R, U, V, test_user[0])
         logger_tb.log_scalar('train_rmse',tr_eval,iteration)
         if not no_validation:
-            logger_tb.log_scalar('evale_rmse',val_eval,iteration)
+            logger_tb.log_scalar('eval_rmse',val_eval,iteration)
         logger_tb.log_scalar('test_rmse',te_eval,iteration)
+        logger_tb.writer.flush()
 
         toc = time.time()
         elapsed = toc - tic
@@ -489,6 +494,8 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
     Train_R_I = train_user[1]
     Train_R_J = train_item[1]
     Test_R = test_user[1]
+
+    no_validation = False
     if valid_user:
         Valid_R = valid_user[1]
     else:
@@ -572,7 +579,7 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
         loss = loss + np.sum(sub_loss)
         seed = np.random.randint(100000)
-        history = cae_module.train(V, item_weight, seed, att_train=attributes_X)
+        history = cae_module.train(V[items_idx], item_weight[items_idx], seed, att_train=attributes_X,callbacks_list=callbacks_list)
         theta = cae_module.get_projection_layer(attributes_X)
         if is_out_of_matrix:
             theta = map_theta_to_V(theta, items_to_new_id_map, num_item, dimension)
@@ -602,8 +609,9 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
         logger_tb.log_scalar('train_rmse', tr_eval, iteration)
         if not no_validation:
-            logger_tb.log_scalar('evale_rmse', val_eval, iteration)
+            logger_tb.log_scalar('eval_rmse', val_eval, iteration)
         logger_tb.log_scalar('test_rmse', te_eval, iteration)
+        logger_tb.writer.flush()
 
         toc = time.time()
         elapsed = toc - tic
@@ -687,6 +695,8 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
     Train_R_I = train_user[1]
     Train_R_J = train_item[1]
     Test_R = test_user[1]
+
+    no_validation = False
     if valid_user:
         Valid_R = valid_user[1]
     else:
@@ -765,6 +775,7 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
         if not no_validation:
             logger_tb.log_scalar('evale_rmse', val_eval, iteration)
         logger_tb.log_scalar('test_rmse', te_eval, iteration)
+        logger_tb.writer.flush()
 
         toc = time.time()
         elapsed = toc - tic
