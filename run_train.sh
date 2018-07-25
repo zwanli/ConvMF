@@ -18,6 +18,20 @@ python run.py -d /vol2/wanliz/data/Extended_ctr/convmf/citeulike_a_extended/inma
 ## Local
 # preprocess
 python run.py --do_preprocess true --raw_rating_data_path /home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/ratings.txt --raw_item_document_data_path /home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/papers.txt -d /home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/inmatrix -a /home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/preprocessed/ --splits_dir /home/zaher/data/Extended_ctr/citeulike_a_extended/in-matrix-item_folds/ -f 10
+--do_preprocess
+true
+--raw_rating_data_path
+/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/ratings.txt
+--raw_item_document_data_path
+/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/papers.txt
+-d
+/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/inmatrix
+-a
+/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/preprocessed/
+--splits_dir
+/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/raw/in-matrix-item_folds/
+-f
+5
 # train local
 
 # CAE
@@ -57,3 +71,4 @@ mf
 -f
 10
 
+-d /home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/inmatrix -a /home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/preprocessed/ -o /home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/25-7_0.01-1000-c-mf -e 200 -k 200 --content_mode mf -u 0.01 -v 1000 -f 5

@@ -177,7 +177,6 @@ elif not grid_search:
     print "\taux path - %s" % aux_path
     print "\tdata path - %s" % data_path
     print "\tresult path - %s" % res_dir
-
     print "\tdimension: %d\n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tmax_iter: %d\n" % (
         dimension, lambda_u, lambda_v, max_iter)
     print "\tContent: %s" % (
@@ -186,6 +185,8 @@ elif not grid_search:
          else ('Attributes' if content_mode == 'cae' else 'Vanilla matrix factorization')))
     if 'cnn' in content_mode:
         print "\tnum_kernel_per_ws: %d\n\tpretrained w2v data path - %s" % (num_kernel_per_ws, pretrain_w2v)
+    print('\tItem weight %s ' % ('Constant (a=1,b=0,01)' if give_item_weight == False
+                               else 'Constant (a=1,b=0,01). And f(n)'))
     print "==========================================================================================="
 
     for f in range(1, fold_num + 1):
@@ -193,8 +194,12 @@ elif not grid_search:
             os.path.join(data_path, 'fold-{}'.format(f), 'train-fold_{}-users.dat'.format(f)))
         train_item = data_factory.read_rating(
             os.path.join(data_path, 'fold-{}'.format(f), 'train-fold_{}-items.dat'.format(f)))
-        valid_user = data_factory.read_rating(
-            os.path.join(data_path, 'fold-{}'.format(f), 'validation-fold_{}-users.dat'.format(f)))
+        # in case of training only on training and test sets
+        if os._exists(os.path.join(data_path, 'fold-{}'.format(f), 'validation-fold_{}-users.dat'.format(f))):
+            valid_user = data_factory.read_rating(
+                os.path.join(data_path, 'fold-{}'.format(f), 'validation-fold_{}-users.dat'.format(f)))
+        else:
+            valid_user = None
         test_user = data_factory.read_rating(
             os.path.join(data_path, 'fold-{}'.format(f), 'test-fold_{}-users.dat'.format(f)))
 

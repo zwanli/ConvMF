@@ -13,7 +13,9 @@ import numpy as np
 from text_analysis.models import CNN_CAE_module
 from text_analysis.models import CNN_module
 from text_analysis.models import CAE_module, CNN_CAE_transfer_module
-
+from lib.tensorboard_logging import Tb_Logger
+from keras.callbacks import TensorBoard
+import datetime
 
 def get_rated_items_idx_map(train_R_I):
     '''
@@ -68,11 +70,25 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
         os.makedirs(state_log_dir)
     f1 = open(state_log_dir + '/state.log', 'w')
 
+    # log metrics into tf.summary
+    log_dir_name = os.path.basename(os.path.dirname(state_log_dir+'/'))
+    log_dir = os.path.join(state_log_dir,log_dir_name)
+    logger_tb = Tb_Logger(log_dir)
+
+    # indicate folder to save, plus other options
+    tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=0,
+                              write_graph=False, write_images=False)
+    # save it in your callback list, where you can include other callbacks
+    callbacks_list = [tensorboard]
+    # then pass to fit as callback, remember to use validation_data also
+
     Train_R_I = train_user[1]
     Train_R_J = train_item[1]
     Test_R = test_user[1]
-    Valid_R = valid_user[1]
-
+    if valid_user:
+        Valid_R = valid_user[1]
+    else:
+        no_validation = True
 
     # # make a deep copy of text and attributes
     # CNN_X_initial = copy.deepcopy(CNN_X)
@@ -164,7 +180,8 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
 
         loss = loss + np.sum(sub_loss)
         seed = np.random.randint(100000)
-        history = cnn_cae_module.train(CNN_X, V[items_idx], item_weight[items_idx], seed, att_train=attributes_X)
+        history = cnn_cae_module.train(CNN_X, V[items_idx], att_train=attributes_X, item_weight=item_weight[items_idx],
+                                       seed=seed,callbacks_list=callbacks_list)
         theta = cnn_cae_module.get_projection_layer(CNN_X, attributes_X)
         if is_out_of_matrix:
             theta = map_theta_to_V(theta, items_to_new_id_map, num_item, emb_dim)
@@ -177,12 +194,24 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
             theta_eval = cnn_cae_module.get_projection_layer(CNN_X_eval,attributes_X_eval)
             V_eval = np.copy(V)
             V_eval[items_idx_eval]=theta_eval
-            val_eval = eval_RMSE(Valid_R, U, V_eval, valid_user[0])
+            if not no_validation:
+                val_eval = eval_RMSE(Valid_R, U, V_eval, valid_user[0])
+
+            else:
+                val_eval = -1
             te_eval = eval_RMSE(Test_R, U, V_eval, test_user[0])
 
         else:
-            val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
+            if not no_validation:
+                val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
+            else:
+                val_eval = -1
             te_eval = eval_RMSE(Test_R, U, V, test_user[0])
+
+        logger_tb.log_scalar('train_rmse',tr_eval,iteration)
+        if not no_validation:
+            logger_tb.log_scalar('evale_rmse',val_eval,iteration)
+        logger_tb.log_scalar('test_rmse',te_eval,iteration)
 
         toc = time.time()
         elapsed = toc - tic
@@ -246,12 +275,25 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
     if not os.path.exists(state_log_dir):
         os.makedirs(state_log_dir)
     f1 = open(state_log_dir + '/state.log', 'w')
+    # log metrics into tf.summary
+    log_dir_name = os.path.basename(os.path.dirname(state_log_dir+'/'))
+    log_dir = os.path.join(state_log_dir,log_dir_name)
+    logger_tb = Tb_Logger(log_dir)
+
+    # indicate folder to save, plus other options
+    tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=0,
+                              write_graph=False, write_images=False)
+    # save it in your callback list, where you can include other callbacks
+    callbacks_list = [tensorboard]
+    # then pass to fit as callback, remember to use validation_data also
 
     Train_R_I = train_user[1]
     Train_R_J = train_item[1]
     Test_R = test_user[1]
-    Valid_R = valid_user[1]
-
+    if valid_user:
+        Valid_R = valid_user[1]
+    else:
+        no_validation = True
     '''Add a mapper in the case of out-of-matrix'''
     # items_idx is the items ids from the training set
     items_idx, items_to_new_id_map = get_rated_items_idx_map(train_user[0])
@@ -344,13 +386,22 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
             theta_eval = cnn_module.get_projection_layer(CNN_X_eval)
             V_eval = np.copy(V)
             V_eval[items_idx_eval]=theta_eval
-            val_eval = eval_RMSE(Valid_R, U, V_eval, valid_user[0])
+            if not no_validation:
+                val_eval = eval_RMSE(Valid_R, U, V_eval, valid_user[0])
+            else:
+                val_eval = -1
             te_eval = eval_RMSE(Test_R, U, V_eval, test_user[0])
 
         else:
-            val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
+            if not no_validation:
+                val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
+            else:
+                val_eval = -1
             te_eval = eval_RMSE(Test_R, U, V, test_user[0])
-
+        logger_tb.log_scalar('train_rmse',tr_eval,iteration)
+        if not no_validation:
+            logger_tb.log_scalar('evale_rmse',val_eval,iteration)
+        logger_tb.log_scalar('test_rmse',te_eval,iteration)
 
         toc = time.time()
         elapsed = toc - tic
@@ -413,11 +464,25 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
     if not os.path.exists(state_log_dir):
         os.makedirs(state_log_dir)
     f1 = open(state_log_dir + '/state.log', 'w')
+    # log metrics into tf.summary
+    log_dir_name = os.path.basename(os.path.dirname(state_log_dir+'/'))
+    log_dir = os.path.join(state_log_dir,log_dir_name)
+    logger_tb = Tb_Logger(log_dir)
+
+    # indicate folder to save, plus other options
+    tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=0,
+                              write_graph=False, write_images=False)
+    # save it in your callback list, where you can include other callbacks
+    callbacks_list = [tensorboard]
+    # then pass to fit as callback, remember to use validation_data also
 
     Train_R_I = train_user[1]
     Train_R_J = train_item[1]
     Test_R = test_user[1]
-    Valid_R = valid_user[1]
+    if valid_user:
+        Valid_R = valid_user[1]
+    else:
+        no_validation = True
 
     if give_item_weight is True:
         item_weight = np.array([math.sqrt(len(i))
@@ -489,8 +554,15 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
         loss = loss - 0.5 * lambda_v * cae_loss * num_item
 
         tr_eval = eval_RMSE(Train_R_I, U, V, train_user[0])
-        val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
+        if not no_validation:
+            val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
+        else:
+            val_eval = -1
         te_eval = eval_RMSE(Test_R, U, V, test_user[0])
+        logger_tb.log_scalar('train_rmse', tr_eval, iteration)
+        if not no_validation:
+            logger_tb.log_scalar('evale_rmse', val_eval, iteration)
+        logger_tb.log_scalar('test_rmse', te_eval, iteration)
 
         toc = time.time()
         elapsed = toc - tic
@@ -552,11 +624,25 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
     if not os.path.exists(state_log_dir):
         os.makedirs(state_log_dir)
     f1 = open(state_log_dir + '/state.log', 'w')
+    # log metrics into tf.summary
+    log_dir_name = os.path.basename(os.path.dirname(state_log_dir+'/'))
+    log_dir = os.path.join(state_log_dir,log_dir_name)
+    logger_tb = Tb_Logger(log_dir)
+
+    # indicate folder to save, plus other options
+    tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=0,
+                              write_graph=False, write_images=False)
+    # save it in your callback list, where you can include other callbacks
+    callbacks_list = [tensorboard]
+    # then pass to fit as callback, remember to use validation_data also
 
     Train_R_I = train_user[1]
     Train_R_J = train_item[1]
     Test_R = test_user[1]
-    Valid_R = valid_user[1]
+    if valid_user:
+        Valid_R = valid_user[1]
+    else:
+        no_validation = True
 
     if give_item_weight is True:
         item_weight = np.array([math.sqrt(len(i))
@@ -621,8 +707,16 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
 
         tr_eval = eval_RMSE(Train_R_I, U, V, train_user[0])
-        val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
+        if not no_validation:
+            val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
+        else:
+            val_eval = -1
         te_eval = eval_RMSE(Test_R, U, V, test_user[0])
+
+        logger_tb.log_scalar('train_rmse', tr_eval, iteration)
+        if not no_validation:
+            logger_tb.log_scalar('evale_rmse', val_eval, iteration)
+        logger_tb.log_scalar('test_rmse', te_eval, iteration)
 
         toc = time.time()
         elapsed = toc - tic

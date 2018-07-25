@@ -10,7 +10,6 @@ contractive_autoencoder by @wiseodd
 
 import numpy as np
 import sys
-import datetime
 
 np.random.seed(1337)
 
@@ -38,15 +37,6 @@ config.gpu_options.per_process_gpu_memory_fraction = 0.8
 # Create a session with the above options specified.
 K.tensorflow_backend.set_session(tf.Session(config=config))
 
-from keras.callbacks import TensorBoard
-
-# indicate folder to save, plus other options
-tensorboard = TensorBoard(log_dir='./logs/{}'.format(datetime.datetime.now().strftime('%d-%m_%H-%M'))
-                          ,histogram_freq=0, write_graph=True, write_images=True)
-
-# save it in your callback list, where you can include other callbacks
-callbacks_list = [tensorboard]
-# then pass to fit as callback, remember to use validation_data also
 
 batch_size = 128
 
@@ -194,7 +184,7 @@ class CNN_CAE_module():
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
 
-    def train(self, X_train, V, item_weight, seed, att_train):
+    def train(self, X_train, V, item_weight, seed, att_train,callbacks_list):
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
         np.random.seed(seed)
         X_train = np.random.permutation(X_train)
@@ -315,7 +305,7 @@ class CNN_module():
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
 
-    def train(self, X_train, V, item_weight, seed):
+    def train(self, X_train, V, item_weight, seed,callbacks_list):
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
         np.random.seed(seed)
         X_train = np.random.permutation(X_train)
@@ -350,8 +340,8 @@ class CAE_module():
     '''
     # More than this epoch cause easily over-fitting on our data sets
     nb_epoch = 5
-    batch_size = batch_size
-
+    # batch_size = batch_size
+    batch_size = 256
     def __init__(self, output_dimesion, cae_N_hidden=50, nb_features=17):
         projection_dimension = output_dimesion
 
@@ -426,7 +416,7 @@ class CAE_module():
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
 
-    def train(self, V, item_weight, seed, att_train):
+    def train(self, V, item_weight, seed, att_train,callbacks_list):
         np.random.seed(seed)
         V = np.random.permutation(V)
 
@@ -581,7 +571,7 @@ class CNN_CAE_transfer_module():
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
 
-    def train(self, X_train, V, item_weight, seed, att_train):
+    def train(self, X_train, V, item_weight, seed, att_train,callbacks_list):
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
         np.random.seed(seed)
         X_train = np.random.permutation(X_train)

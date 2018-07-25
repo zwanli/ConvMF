@@ -171,24 +171,55 @@ def read_metrics(path):
     print(df2)
 
 if __name__ == '__main__':
-    # print "==========================================================================================="
-    # print('in-matrix results:')
-    # #in-matrix path
-    # # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_rmse.dat'
+    print "==========================================================================================="
+    print('in-matrix results:')
+    #in-matrix path
+    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_rmse.dat'
     # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_19_7-inmatrix-trasnfer/all_rmse.dat'
-    # read_rmse(path)
-    # #in-matrix path
-    # # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_avg_res.dat'
-    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_19_7-inmatrix-trasnfer/all_avg_results_tanh.dat'
-    # read_metrics(path)
-
-    print "==========================================================================================="
-    print('outof-matrix results:')
-    #outof-matrix path
-    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/outofmatrix/all_rmse.dat'
     read_rmse(path)
-    #outof-matrix path
-    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/outofmatrix/all_avg_res.dat'
+    #in-matrix path
+    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_avg_res.dat'
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_19_7-inmatrix-trasnfer/all_avg_results_tanh.dat'
     read_metrics(path)
-    print "==========================================================================================="
 
+    # print "==========================================================================================="
+    # print('outof-matrix results:')
+    # #outof-matrix path
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/outofmatrix/all_rmse.dat'
+    # read_rmse(path)
+    # #outof-matrix path
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/outofmatrix/all_avg_res.dat'
+    # read_metrics(path)
+    # print "==========================================================================================="
+
+import tensorflow as tf
+
+# Before the loop:
+# Before the loop:
+
+writer = tf.summary.FileWriter('/home/zaher/tf_summary')
+
+
+def log_scalar(tag, value, step):
+    """Log a scalar variable.
+
+    Parameter
+    ----------
+    tag : basestring
+    Name of the scalar
+    value
+    step : int
+    training iteration
+    """
+    summary = tf.Summary(value=[tf.Summary.Value(tag=tag,
+                                                 simple_value=value)], )
+    writer.add_summary(summary, step)
+
+
+# Inside the loop:
+for i in range(100):
+    log_scalar('train', i * (3 - i), i)
+    log_scalar('val', i * (5 - i), i)
+    log_scalar('test', i * (7 - i), i)
+
+writer.flush()
