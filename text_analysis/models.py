@@ -9,11 +9,12 @@ contractive_autoencoder by @wiseodd
 '''
 
 import numpy as np
+import sys
 
 np.random.seed(1337)
 
 from keras.callbacks import EarlyStopping
-from keras.layers.convolutional import Conv2D, MaxPooling2D
+from keras.layers.convolutional import Conv2D, MaxPooling2D, Conv1D, MaxPooling1D
 from keras.layers.core import Reshape, Flatten, Dropout, Activation
 from keras.layers import Input, Embedding, Dense, concatenate, BatchNormalization, add
 from keras.models import Model, Sequential
@@ -21,7 +22,8 @@ from keras.preprocessing import sequence
 from keras.utils import plot_model
 
 from keras import backend as K
-import  tensorflow as tf
+import tensorflow as tf
+
 ###################################
 # TensorFlow wizardry
 config = tf.ConfigProto()
@@ -36,74 +38,16 @@ config.gpu_options.per_process_gpu_memory_fraction = 0.8
 K.tensorflow_backend.set_session(tf.Session(config=config))
 
 
-# from keras.utils import plot_model
+batch_size = 128
 
-
-def relu(x):
-    return Activation('relu')(x)
-
-def neck(nip,nop,stride):
-    def unit(x):
-        nBottleneckPlane = int(nop / 4)
-        nbp = nBottleneckPlane
-
-        if nip==nop:
-            ident = x
-
-            x = BatchNormalization(axis=-1)(x)
-            x = relu(x)
-            x = Conv2D(nbp,1,1,
-            subsample=(stride,stride))(x)
-
-            x = BatchNormalization(axis=-1)(x)
-            x = relu(x)
-            x = Conv2D(nbp,3,3,border_mode='same')(x)
-
-            x = BatchNormalization(axis=-1)(x)
-            x = relu(x)
-            x = Conv2D(nop,1,1)(x)
-
-            out = add([ident,x])
-        else:
-            x = BatchNormalization(axis=-1)(x)
-            x = relu(x)
-            ident = x
-
-            x = Conv2D(nbp,1,1,
-            subsample=(stride,stride))(x)
-
-            x = BatchNormalization(axis=-1)(x)
-            x = relu(x)
-            x = Conv2D(nbp,3,3,border_mode='same')(x)
-
-            x = BatchNormalization(axis=-1)(x)
-            x = relu(x)
-            x = Conv2D(nop,1,1)(x)
-
-            ident = Conv2D(nop,1,1,
-            subsample=(stride,stride))(ident)
-
-            out = add([ident,x])
-        return out
-    return unit
-
-def cake(nip,nop,layers,std):
-    def unit(x):
-        for i in range(layers):
-            if i==0:
-                x = neck(nip,nop,std)(x)
-            else:
-                x = neck(nop,nop,1)(x)
-        return x
-    return unit
 
 class CNN_CAE_module():
     '''
     classdocs
     '''
-    batch_size = 256
     # More than this epoch cause easily over-fitting on our data sets
     nb_epoch = 5
+    batch_size = batch_size
 
     def __init__(self, output_dimesion, vocab_size, dropout_rate, emb_dim, max_len, nb_filters,
                  init_W=None, cae_N_hidden=50, nb_features=17):
@@ -195,7 +139,7 @@ class CNN_CAE_module():
 
         # Output Layergit
         model = Model(inputs=[doc_input, att_input], outputs=[projection, att_output])
-        #todo: check the optimizer
+        # todo: check the optimizer
         model.compile(optimizer='rmsprop',
                       # optimizer={'joint_output': 'rmsprop', 'cae_output':  'adam'},
                       loss={'joint_output': 'mse', 'cae_output': contractive_loss},
@@ -203,7 +147,7 @@ class CNN_CAE_module():
         # plot_model(model, to_file='model.png')
 
         self.model = model
-        #plot_model(model, to_file='model.png',show_shapes=True)
+        # plot_model(model, to_file='model.png',show_shapes=True)
 
     def contractive_autoencoder(self, X, lam=1e-3):
         X = X.reshape(X.shape[0], -1)
@@ -240,7 +184,7 @@ class CNN_CAE_module():
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
 
-    def train(self, X_train, V, item_weight, seed, att_train):
+    def train(self, X_train, V, item_weight, seed, att_train,callbacks_list):
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
         np.random.seed(seed)
         X_train = np.random.permutation(X_train)
@@ -258,7 +202,7 @@ class CNN_CAE_module():
         history = self.model.fit({'doc_input': X_train, 'cae_input': att_train},
                                  {'joint_output': V, 'cae_output': att_train},
                                  verbose=0, batch_size=self.batch_size, epochs=self.nb_epoch,
-                                 sample_weight={'joint_output': item_weight})
+                                 sample_weight={'joint_output': item_weight}, callbacks=callbacks_list)
 
         # cnn_loss_his = history.history['loss']
         # cmp_cnn_loss = sorted(cnn_loss_his)[::-1]
@@ -274,22 +218,23 @@ class CNN_CAE_module():
             {'doc_input': X_train, 'cae_input': att_train}, batch_size=2048)
         return Y[0]
 
-    def get_intermediate_output(self,X_train, att_train):
+    def get_intermediate_output(self, X_train, att_train):
         layer_name = 'concatenated_output'
         intermediate_layer_model = Model(inputs=self.model.input,
                                          outputs=self.model.get_layer(layer_name).output)
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
         intermediate_output = intermediate_layer_model.predict({'doc_input': X_train, 'cae_input': att_train},
-                                                               )#batch_size=2048)
+                                                               )  # batch_size=2048)
         return intermediate_output
+
 
 class CNN_module():
     '''
     classdocs
     '''
-    batch_size = 64
     # More than this epoch cause easily over-fitting on our data sets
     nb_epoch = 5
+    batch_size = batch_size
 
     def __init__(self, output_dimesion, vocab_size, dropout_rate, emb_dim, max_len, nb_filters, init_W=None):
 
@@ -360,7 +305,7 @@ class CNN_module():
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
 
-    def train(self, X_train, V, item_weight, seed):
+    def train(self, X_train, V, item_weight, seed,callbacks_list):
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
         np.random.seed(seed)
         X_train = np.random.permutation(X_train)
@@ -372,7 +317,7 @@ class CNN_module():
         print("Train...CNN module")
         history = self.model.fit(X_train, V,
                                  verbose=0, batch_size=self.batch_size, epochs=self.nb_epoch,
-                                 sample_weight={'output': item_weight})
+                                 sample_weight={'output': item_weight}, callbacks=callbacks_list)
 
         # cnn_loss_his = history.history['loss']
         # cmp_cnn_loss = sorted(cnn_loss_his)[::-1]
@@ -393,21 +338,17 @@ class CAE_module():
     '''
     classdocs
     '''
-    batch_size = 256
     # More than this epoch cause easily over-fitting on our data sets
     nb_epoch = 5
-
+    # batch_size = batch_size
+    batch_size = 256
     def __init__(self, output_dimesion, cae_N_hidden=50, nb_features=17):
-
-
-
         projection_dimension = output_dimesion
 
         ''' Attributes module '''
         lam = 1e-3
         # Number of features per data sample
         N = nb_features
-
 
         # input layer
         att_input = Input(shape=(N,), name='cae_input')
@@ -438,7 +379,7 @@ class CAE_module():
         # plot_model(model, to_file='model.png')
 
         self.model = model
-        #plot_model(model, to_file='model.png',show_shapes=True)
+        # plot_model(model, to_file='model.png',show_shapes=True)
 
     def contractive_autoencoder(self, X, lam=1e-3):
         X = X.reshape(X.shape[0], -1)
@@ -475,8 +416,7 @@ class CAE_module():
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
 
-    def train(self, V, item_weight, seed, att_train):
-
+    def train(self, V, item_weight, seed, att_train,callbacks_list):
         np.random.seed(seed)
         V = np.random.permutation(V)
 
@@ -490,12 +430,186 @@ class CAE_module():
         history = self.model.fit({'cae_input': att_train},
                                  {'encoded': V, 'cae_output': att_train},
                                  verbose=0, batch_size=self.batch_size, epochs=self.nb_epoch,
-                                 sample_weight={'encoded': item_weight})
+                                 sample_weight={'encoded': item_weight}, callbacks=callbacks_list)
         return history
 
     def get_projection_layer(self, att_train):
-
         Y = self.model.predict(
             {'cae_input': att_train}, batch_size=2048)
         return Y[0]
 
+
+class CNN_CAE_transfer_module():
+    '''
+    classdocs
+    '''
+    # More than this epoch cause easily over-fitting on our data sets
+    nb_epoch = 5
+    batch_size = batch_size
+
+    def __init__(self, output_dimesion, vocab_size, dropout_rate, emb_dim, max_len, nb_filters,
+                 init_W=None, cae_N_hidden=50, nb_features=17):
+
+        ''' CNN Module'''
+        self.max_len = max_len
+        max_features = vocab_size
+        vanila_dimension = 200
+        projection_dimension = output_dimesion
+
+        filter_lengths = [3, 4, 5]
+        # self.model = Graph()
+        # input
+        doc_input = Input(shape=(max_len,), dtype='int32', name='doc_input')
+
+        '''Embedding Layer'''
+        if init_W is None:
+            # self.model.add_node(Embedding(
+            #     max_features, emb_dim, input_length=max_len), name='sentence_embeddings', input='input')
+            sentence_embeddings = Embedding(output_dim=emb_dim, input_dim=max_features, input_length=max_len,
+                                            name='sentence_embeddings')(doc_input)
+        else:
+            # self.model.add_node(Embedding(max_features, emb_dim, input_length=max_len, weights=[
+            #                     init_W / 20]), name='sentence_embeddings', input='input')
+            sentence_embeddings = Embedding(output_dim=emb_dim, input_dim=max_features, input_length=max_len,
+                                            weights=[init_W / 20], name='sentence_embeddings')(doc_input)
+
+        '''Reshape Layer'''
+        reshape = Reshape(target_shape=(max_len, emb_dim, 1), name='reshape')(sentence_embeddings)  # chanels last
+
+        '''Convolution Layer & Max Pooling Layer'''
+        flatten_ = []
+        for i in filter_lengths:
+            model_internal = Sequential()
+            # model_internal.add(Conv2D(
+            #     nb_filters, i, emb_dim, activation="relu"))
+            model_internal.add(Conv2D(nb_filters, (i, emb_dim), activation="relu",
+                                      name='conv2d_' + str(i), input_shape=(self.max_len, emb_dim, 1)))
+            # model_internal.add(MaxPooling2D(
+            #     pool_size=(self.max_len - i + 1, 1)))
+            model_internal.add(MaxPooling2D(pool_size=(self.max_len - i + 1, 1), name='maxpool2d_' + str(i)))
+            model_internal.add(Flatten())
+            flatten = model_internal(reshape)
+            flatten_.append(flatten)
+
+        ''' Attributes module '''
+        lam = 1e-3
+        N = nb_features
+        # cae_N_hidden = 50
+
+        att_input = Input(shape=(N,), name='cae_input')
+        encoded = Dense(cae_N_hidden, activation='sigmoid', name='encoded')(att_input)
+        att_output = Dense(N, activation='linear', name='cae_output')(encoded)
+
+        # model = Model(input=att_input, output=att_output)
+
+        def contractive_loss(y_pred, y_true):
+            mse = K.mean(K.square(y_true - y_pred), axis=1)
+
+            W = K.variable(value=model.get_layer('encoded').get_weights()[0])  # N x cae_N_hidden
+            W = K.transpose(W)  # cae_N_hidden x N
+            h = model.get_layer('encoded').output
+            dh = h * (1 - h)  # N_batch x cae_N_hidden
+
+            # N_batch x cae_N_hidden * cae_N_hidden x 1 = N_batch x 1
+            contractive = lam * K.sum(dh ** 2 * K.sum(W ** 2, axis=1), axis=1)
+
+            return mse + contractive
+
+        '''Transfer layer '''
+        if cae_N_hidden != nb_filters:
+            sys.exit("For the transfer layer to work ''for now'' the attributes latent vector dimension (--att_dim)"
+                     " must equal the number of filters (kernal) of the conv. layer (--num_kernel_per_ws)")
+        # combine the outputs of boths modules
+        model_internal = Sequential(name='Transfer_ResBlock')
+        model_internal.add(Conv1D(nb_filters / 2, 1, activation="relu",
+                                  name='Res_conv2d_1', input_shape=(cae_N_hidden, 1)))
+        model_internal.add(Conv1D(nb_filters, 1, activation="relu", name='Res_conv2d_2'))
+        model_internal.add(MaxPooling1D(pool_size=cae_N_hidden, name='Res_maxpool1d'))
+        model_internal.add(Flatten())
+
+        reshape = Reshape(target_shape=(cae_N_hidden, 1), name='reshape_encoded')(encoded)  # chanels last
+        residual = model_internal(reshape)
+
+        shortcut = encoded
+        transfered = add([residual, shortcut])
+
+        ''' Adding CAE output to CNN output '''
+        flatten_.append(transfered)
+
+        '''Fully Connect Layer & Dropout Layer'''
+        # self.model.add_node(Dense(vanila_dimension, activation='tanh'),
+        #                     name='fully_connect', inputs=['unit_' + str(i) for i in filter_lengths])
+        fully_connect = Dense(vanila_dimension, activation='tanh',
+                              name='fully_connect')(concatenate(flatten_, axis=-1))
+
+        # self.model.add_node(Dropout(dropout_rate),
+        #                     name='dropout', input='fully_connect')
+        dropout = Dropout(dropout_rate, name='dropout')(fully_connect)
+        # joint_output = add([dropout, transfered], name='joint_output')
+
+        '''Projection Layer & Output Layer'''
+        # self.model.add_node(Dense(projection_dimension, activation='tanh'),
+        #                     name='projection', input='dropout')
+        pj = Dense(projection_dimension, activation='tanh', name='joint_output')  # output layer
+        projection = pj(dropout)
+
+        # Output Layergit
+        model = Model(inputs=[doc_input, att_input], outputs=[projection, att_output])
+        # todo: check the optimizer
+        model.compile(optimizer='rmsprop',
+                      # optimizer={'joint_output': 'rmsprop', 'cae_output':  'adam'},
+                      loss={'joint_output': 'mse', 'cae_output': contractive_loss},
+                      loss_weights={'joint_output': 1., 'cae_output': 1.})
+        # plot_model(model, to_file='model.png')
+
+        self.model = model
+        # plot_model(model, to_file='model_cnn_cae_transfer.png',show_shapes=True)
+
+    def load_model(self, model_path):
+        self.model.load_weights(model_path)
+
+    def save_model(self, model_path, isoverwrite=True):
+        self.model.save_weights(model_path, isoverwrite)
+
+    def train(self, X_train, V, item_weight, seed, att_train,callbacks_list):
+        X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
+        np.random.seed(seed)
+        X_train = np.random.permutation(X_train)
+
+        np.random.seed(seed)
+        V = np.random.permutation(V)
+
+        np.random.seed(seed)
+        item_weight = np.random.permutation(item_weight)
+
+        np.random.seed(seed)
+        att_train = np.random.permutation(att_train)
+
+        print("Train...CNN_CAE module")
+        history = self.model.fit({'doc_input': X_train, 'cae_input': att_train},
+                                 {'joint_output': V, 'cae_output': att_train},
+                                 verbose=0, batch_size=self.batch_size, epochs=self.nb_epoch,
+                                 sample_weight={'joint_output': item_weight}, callbacks=callbacks_list)
+
+        # cnn_loss_his = history.history['loss']
+        # cmp_cnn_loss = sorted(cnn_loss_his)[::-1]
+        # if cnn_loss_his != cmp_cnn_loss:
+        #     self.nb_epoch = 1
+        return history
+
+    def get_projection_layer(self, X_train, att_train):
+        X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
+        # Y = self.model.predict(
+        #     {'doc_input': X_train, 'cae_input':att_train}, batch_size=len(X_train))
+        Y = self.model.predict(
+            {'doc_input': X_train, 'cae_input': att_train}, batch_size=2048)
+        return Y[0]
+
+    def get_intermediate_output(self, X_train, att_train):
+        layer_name = 'concatenated_output'
+        intermediate_layer_model = Model(inputs=self.model.input,
+                                         outputs=self.model.get_layer(layer_name).output)
+        X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
+        intermediate_output = intermediate_layer_model.predict({'doc_input': X_train, 'cae_input': att_train},
+                                                               )  # batch_size=2048)
+        return intermediate_output

@@ -368,9 +368,10 @@ class Data_Factory():
         f_train_user_out = os.path.join(outpath, ntpath.basename(f_train_user_in))
         self.convert_and_save(f_train_user_in, f_train_user_out)
 
-        f_valid_user_in = glob.glob(os.path.join(inpath, "validation-fold_*-users.dat"))[0]
-        f_valid_user_out = os.path.join(outpath, ntpath.basename(f_valid_user_in))
-        self.convert_and_save(f_valid_user_in, f_valid_user_out)
+        if os.path.exists(os.path.join(inpath, "validation-fold_*-users.dat")):
+            f_valid_user_in = glob.glob(os.path.join(inpath, "validation-fold_*-users.dat"))[0]
+            f_valid_user_out = os.path.join(outpath, ntpath.basename(f_valid_user_in))
+            self.convert_and_save(f_valid_user_in, f_valid_user_out)
 
 
         f_test_user_in = glob.glob(os.path.join(inpath, "test-fold_*-users.dat"))[0]
@@ -381,9 +382,10 @@ class Data_Factory():
         f_train_item_out = os.path.join(outpath, ntpath.basename(f_train_item_in))
         self.convert_and_save(f_train_item_in, f_train_item_out)
 
-        f_valid_item_in = glob.glob(os.path.join(inpath, "validation-fold_*-items.dat"))[0]
-        f_valid_item_out = os.path.join(outpath, ntpath.basename(f_valid_item_in))
-        self.convert_and_save(f_valid_item_in, f_valid_item_out)
+        if os.path.exists(os.path.join(inpath, "validation-fold_*-items.dat")):
+            f_valid_item_in = glob.glob(os.path.join(inpath, "validation-fold_*-items.dat"))[0]
+            f_valid_item_out = os.path.join(outpath, ntpath.basename(f_valid_item_in))
+            self.convert_and_save(f_valid_item_in, f_valid_item_out)
 
         f_test_item_in = glob.glob(os.path.join(inpath, "test-fold_*-items.dat"))[0]
         f_test_item_out = os.path.join(outpath, ntpath.basename(f_test_item_in))
