@@ -19,11 +19,11 @@ from util import Logger
 # tf.python.control_flow_ops = tf
 
 
-mnist = input_data.read_data_sets('../data/MNIST_data', one_hot=True)
-
-X_train, y_train = mnist.train.images, mnist.train.labels
-X_val, y_val = mnist.validation.images, mnist.validation.labels
-X_test, y_test = mnist.test.images, mnist.test.labels
+# mnist = input_data.read_data_sets('../data/MNIST_data', one_hot=True)
+#
+# X_train, y_train = mnist.train.images, mnist.train.labels
+# X_val, y_val = mnist.validation.images, mnist.validation.labels
+# X_test, y_test = mnist.test.images, mnist.test.labels
 #
 #
 # def autoencoder(X, loss='l2', lam=0.):
@@ -123,28 +123,36 @@ def contractive_autoencoder(X, lam=1e-3):
     return model, Model(inputs=inputs, outputs=encoded)
 
 
-if __name__ == '__main__':
-    # data_factory = Data_Factory()
-    # labels, X_train = data_factory.read_attributes('/home/wanli/data/Extended_ctr/convmf/dummy/preprocessed/paper_info_processed.csv')
-    # model, representation = contractive_autoencoder(X_train)
-    #
-    # idx = [0,1,12,13,4]
-    # X_recons = model.predict(X_train[idx])
-    #
-    # # idxs = np.random.randint(0, X_test.shape[0], size=5)
-    # # X_recons = model.predict(X_test[idxs])
-    #
-    # for X_recon in X_recons:
-    #     plt.imshow(X_recon.reshape(28, 28), cmap='Greys_r')
-    #     plt.show()
+# if __name__ == '__main__':
+# data_factory = Data_Factory()
+# labels, X_train = data_factory.read_attributes('/home/wanli/data/Extended_ctr/convmf/dummy/preprocessed/paper_info_processed.csv')
+# model, representation = contractive_autoencoder(X_train)
+#
+# idx = [0,1,12,13,4]
+# X_recons = model.predict(X_train[idx])
+#
+# # idxs = np.random.randint(0, X_test.shape[0], size=5)
+# # X_recons = model.predict(X_test[idxs])
+#
+# for X_recon in X_recons:
+#     plt.imshow(X_recon.reshape(28, 28), cmap='Greys_r')
+#     plt.show()
 
-    import cPickle as pickl
-    import numpy as np
-    import pandas as pd
-    import matplotlib.pyplot as plt
+import cPickle as pickl
+import pandas as pd
+import matplotlib.pyplot as plt
 
-    path = '/home/wanli/data/Extended_ctr/convmf/gridsearch'
-    R = pickl.load(open(path + "/all_avg_results.dat", "rb"))
+def read_rmse(path):
+    results = pickl.load(open(path, "rb"))
+    header = ['train','validation','test']
+    df = pd.DataFrame.from_records(results.values(), index=results.keys(), columns=header)
+    df2 = df.sort_values(by=['validation'])
+    # df2.sort_index(inplace=True)
+    print(df2)
+
+def read_metrics(path):
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/grid_search'
+    R = pickl.load(open(path, "rb"))
     recall_breaks = [5, 10] + list(xrange(20, 201, 20))
     mrr_breaks = [10]
     ndcg_breaks = [5, 10]
@@ -157,7 +165,61 @@ if __name__ == '__main__':
     df.plot()
     # plt.show()
     df2 = df.loc[:, 'MRR@10':]
-    df2 = df2.sort_values(by=['nDCG@5', 'nDCG@10', 'MRR@10'])
-    df2.sort_index(inplace=True)
-    print(df2.idxmax(axis=0, skipna=True))
-    print df
+    df2 = df2.sort_values(by=['MRR@10'],ascending=False)
+    df3 = df2.sort_index()
+    df4 = df3.idxmax(axis=0, skipna=True)
+    print(df2)
+
+if __name__ == '__main__':
+    print "==========================================================================================="
+    print('in-matrix results:')
+    #in-matrix path
+    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_rmse.dat'
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_19_7-inmatrix-trasnfer/all_rmse.dat'
+    read_rmse(path)
+    #in-matrix path
+    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/inmatrix/all_avg_res.dat'
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_19_7-inmatrix-trasnfer/all_avg_results_tanh.dat'
+    read_metrics(path)
+
+    # print "==========================================================================================="
+    # print('outof-matrix results:')
+    # #outof-matrix path
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/outofmatrix/all_rmse.dat'
+    # read_rmse(path)
+    # #outof-matrix path
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/outofmatrix/all_avg_res.dat'
+    # read_metrics(path)
+    # print "==========================================================================================="
+
+import tensorflow as tf
+
+# Before the loop:
+# Before the loop:
+
+writer = tf.summary.FileWriter('/home/zaher/tf_summary')
+
+
+def log_scalar(tag, value, step):
+    """Log a scalar variable.
+
+    Parameter
+    ----------
+    tag : basestring
+    Name of the scalar
+    value
+    step : int
+    training iteration
+    """
+    summary = tf.Summary(value=[tf.Summary.Value(tag=tag,
+                                                 simple_value=value)], )
+    writer.add_summary(summary, step)
+
+
+# Inside the loop:
+for i in range(100):
+    log_scalar('train', i * (3 - i), i)
+    log_scalar('val', i * (5 - i), i)
+    log_scalar('test', i * (7 - i), i)
+
+writer.flush()

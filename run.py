@@ -10,8 +10,12 @@ import glob
 import itertools
 import numpy as np
 import cPickle as pickl
+
 from models import ConvCAEMF
 from models import ConvMF
+from models import CAEMF
+from models import MF
+
 from data_manager import Data_Factory
 from rec_eval.lib.evaluator import Evaluator
 from util import Logger
@@ -29,7 +33,7 @@ parser.add_argument("-m", "--min_rating", type=int,
                     help="Users who have less than \"min_rating\" ratings will be removed (default = 1)", default=1)
 parser.add_argument("-l", "--max_length_document", type=int,
                     help="Maximum length of document of each item (default = 300)", default=300)
-parser.add_argument("-f", "--max_df", type=float,
+parser.add_argument("--max_df", type=float,
                     help="Threshold to ignore terms that have a document frequency higher than the given value (default = 0.5)",
                     default=0.5)
 parser.add_argument("-s", "--vocab_size", type=int,
@@ -44,6 +48,8 @@ parser.add_argument("-d", "--data_path", type=str,
 parser.add_argument("--splits_dir", type=str,
                     help="Path to the generated folds directory")
 parser.add_argument("-a", "--aux_path", type=str, help="Path to R, D_all sets")
+parser.add_argument("--fold_num", "-f", type=int, help="The number of folds to be generated. Default is 5",
+                    choices=[5,10], required=True)
 
 # Option for running ConvMF
 parser.add_argument("-o", "--res_dir", type=str,
@@ -53,9 +59,10 @@ parser.add_argument("-e", "--emb_dim", type=int,
 parser.add_argument("-p", "--pretrain_w2v", type=str,
                     help="Path to pretrain word embedding model  to initialize word vectors")
 parser.add_argument("-g", "--give_item_weight", type=bool,
-                    help="True or False to give item weight of ConvMF (default = True)", default=True)
+                    help="Use item-specific weight, check Donghyun Kim '17 paper |True or False  (default = False)",
+                    default=False)
 parser.add_argument("-k", "--dimension", type=int,
-                    help="Size of latent dimension for users and items (default: 50)", default=50)
+                    help="Dimension of users and items latent vector(default: 200)", default=200)
 parser.add_argument("-u", "--lambda_u", type=float,
                     help="Value of user regularizer")
 parser.add_argument("-v", "--lambda_v", type=float,
@@ -64,20 +71,20 @@ parser.add_argument("-n", "--max_iter", type=int,
                     help="Value of max iteration (default: 200)", default=200)
 parser.add_argument("-w", "--num_kernel_per_ws", type=int,
                     help="Number of kernels per window size for CNN module (default: 100)", default=100)
-parser.add_argument("--content_mode", type=str, choices=['cnn', 'cnn_cae'],
+parser.add_argument("--content_mode", type=str, choices=['cnn', 'cnn_cae', 'cae', 'mf'],
                     help="Content to be used, CNN: textual content, CAE: auxiliary item features", default='cnn')
 parser.add_argument("--att_dim", type=int,
-                    help="Size of latent dimension for attributes vectors (default: 50)", default=50)
+                    help="Dimension of attributes latent vector (default: 50)", default=50)
 parser.add_argument("--grid_search", type=bool,
                     help="Run grid search to tune the hyperparameters (default = False)", default=False)
 
-
 args = parser.parse_args()
-grid_search=args.grid_search
+grid_search = args.grid_search
 do_preprocess = args.do_preprocess
 data_path = args.data_path
 aux_path = args.aux_path
 splits_dir = args.splits_dir
+fold_num = args.fold_num
 if data_path is None:
     sys.exit("Argument missing - data_path is required")
 if aux_path is None:
@@ -95,14 +102,14 @@ if do_preprocess:
     split_ratio = args.split_ratio
 
     print "=================================Preprocess Option Setting================================="
-    print "\tsaving preprocessed aux path - %s" % aux_path
-    print "\tsaving preprocessed data path - %s" % data_path
     print "\trating data path - %s" % path_rating
     print "\tdocument data path - %s" % path_itemtext
     print "\tmin_rating: %d\n\tmax_length_document: %d\n\tmax_df: %.1f\n\tvocab_size: %d" \
           % (min_rating, max_length, max_df, vocab_size)
     print "\t{}".format(
         "split_ratio: %.1f" % split_ratio if splits_dir is None else "Splits: using pre-generated folds")
+    print "\tsaving preprocessed aux  to - %s" % aux_path
+    print "\tsaving preprocessed splits to - %s" % data_path
     print "==========================================================================================="
 
     R, D_all = data_factory.preprocess(
@@ -111,94 +118,54 @@ if do_preprocess:
     # Read training, test, and valid sets from the generated folds
     # data_factory.generate_train_valid_test_file_from_R(
     #     data_path, R, split_ratio)
-    data_factory.generate_train_valid_test_from_ctr_split(splits_dir, data_path)
-elif not grid_search:
-    res_dir = args.res_dir
-    emb_dim = args.emb_dim
-    pretrain_w2v = args.pretrain_w2v
-    max_length = args.max_length_document
+    for f in range(1, fold_num + 1):
+        fold_res_dir = os.path.join(data_path, 'fold-{}'.format(f))
+        if not os.path.exists(fold_res_dir):
+            os.makedirs(fold_res_dir)
+        print "==========================================================================================="
+        print "Running on fold %d" % (f)
+        data_factory.generate_train_valid_test_from_ctr_split(os.path.join(splits_dir, 'fold-{}'.format(f)),
+                                                              fold_res_dir)
 
+elif not grid_search:
+
+    # general params
+    res_dir = args.res_dir
     dimension = args.dimension
     lambda_u = args.lambda_u
     lambda_v = args.lambda_v
     max_iter = args.max_iter
-    num_kernel_per_ws = args.num_kernel_per_ws
     give_item_weight = args.give_item_weight
     content_mode = args.content_mode
-
-    if res_dir is None:
-        sys.exit("Argument missing - res_dir is required")
-    else:
-        # res_dir = os.path.join(res_dir, '%.5f-%.5f-%d-%s' % (lambda_u, lambda_v,max_length,
-        #                                                        'cnn_cae' if content_mode == 'cnn_cae' else 'cnn'))
-        if not os.path.exists(res_dir):
-            os.makedirs(res_dir)
     if lambda_u is None:
         sys.exit("Argument missing - lambda_u is required")
     if lambda_v is None:
         sys.exit("Argument missing - lambda_v is required")
 
-    print "===================================ConvMF Option Setting==================================="
-    print "\taux path - %s" % aux_path
-    print "\tdata path - %s" % data_path
-    print "\tresult path - %s" % res_dir
-    print "\tpretrained w2v data path - %s" % pretrain_w2v
-    print "\tdimension: %d\n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tmax_iter: %d\n\tnum_kernel_per_ws: %d" \
-          % (dimension, lambda_u, lambda_v, max_iter, num_kernel_per_ws)
-    print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
-    print "==========================================================================================="
+    # R, D_all = data_factory.load(aux_path)
+    R = data_factory.load_ratings(aux_path)
+    # CNN params
+    if 'cnn' in content_mode:
+        emb_dim = args.emb_dim
+        pretrain_w2v = args.pretrain_w2v
+        max_length = args.max_length_document
+        num_kernel_per_ws = args.num_kernel_per_ws
 
-    R, D_all = data_factory.load(aux_path)
-    CNN_X = D_all['X_sequence']
-    vocab_size = len(D_all['X_vocab']) + 1
+        D_all = data_factory.load_documents(aux_path)
+        CNN_X = D_all['X_sequence']
+        vocab_size = len(D_all['X_vocab']) + 1
 
+        if pretrain_w2v is None:
+            init_W = None
+        else:
+            init_W = data_factory.read_pretrained_word2vec(
+                pretrain_w2v, D_all['X_vocab'], emb_dim)
 
-    if pretrain_w2v is None:
-        init_W = None
-    else:
-        init_W = data_factory.read_pretrained_word2vec(
-            pretrain_w2v, D_all['X_vocab'], emb_dim)
-
-    train_user = data_factory.read_rating(glob.glob(data_path + '/train-fold_*-users.dat')[0])
-    train_item = data_factory.read_rating(glob.glob(data_path + '/train-fold_*-items.dat')[0])
-    valid_user = data_factory.read_rating(glob.glob(data_path + '/validation-fold_*-users.dat')[0])
-    test_user = data_factory.read_rating(glob.glob(data_path + '/test-fold_*-users.dat')[0])
-
-    if content_mode == 'cnn_cae':
+    # CAE params
+    if 'cae' in content_mode:
         att_dim = args.att_dim
         # Read item's attributes
         labels, features_matrix = data_factory.read_attributes(os.path.join(aux_path + 'paper_attributes.tsv'))
-
-        ConvCAEMF(max_iter=max_iter, res_dir=res_dir, state_log_dir=res_dir,
-                  lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
-                  give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
-                  train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
-                  attributes_X=features_matrix, att_dim=att_dim)
-    elif content_mode == 'cnn':
-        ConvMF(max_iter=max_iter, res_dir=res_dir, state_log_dir=res_dir,
-               lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
-               give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
-               train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
-
-
-if grid_search:
-    res_dir = args.res_dir
-    sys.stdout = Logger(os.path.join(res_dir,'log.txt'))
-    emb_dim = args.emb_dim
-    pretrain_w2v = args.pretrain_w2v
-    max_length = args.max_length_document
-
-    dimension = args.dimension
-    max_iter = args.max_iter
-    num_kernel_per_ws = args.num_kernel_per_ws
-    give_item_weight = args.give_item_weight
-
-
-    lambda_u_list =[0.001, 0.01, 0.1] #[0.001, 0.01, 0.1, 1, 10, 100, 1000]
-    lambda_v_list =[10,100,1000] #[0.01, 0.1, 1, 10, 100, 1000, 1000, 100000]
-    confidence_mods = ['c']  # TODO: , 'user-dependant'] # c: constant, ud: user_dependent
-    content_mods = ['cnn_cae']#['cnn_cae', 'cnn']
-    att_dims = [10,20,100,200] #[10, 20, 50, 100, 200]
 
     if res_dir is None:
         sys.exit("Argument missing - res_dir is required")
@@ -206,7 +173,112 @@ if grid_search:
         if not os.path.exists(res_dir):
             os.makedirs(res_dir)
 
-    fixed_res_dir = os.path.join(res_dir,'U_V','fold-1')
+    print "=================================== Option Setting==================================="
+    print "\taux path - %s" % aux_path
+    print "\tdata path - %s" % data_path
+    print "\tresult path - %s" % res_dir
+    print "\tdimension: %d\n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tmax_iter: %d\n" % (
+        dimension, lambda_u, lambda_v, max_iter)
+    print "\tContent: %s" % (
+        'Text and attributes' if content_mode == 'cnn_cae' else
+        ('Text' if content_mode == 'cnn'
+         else ('Attributes' if content_mode == 'cae' else 'Vanilla matrix factorization')))
+    if 'cnn' in content_mode:
+        print "\tnum_kernel_per_ws: %d\n\tpretrained w2v data path - %s" % (num_kernel_per_ws, pretrain_w2v)
+    print('\tItem weight %s ' % ('Constant (a=1,b=0,01)' if give_item_weight == False
+                               else 'Constant (a=1,b=0,01). And f(n)'))
+    print "==========================================================================================="
+
+    for f in range(1, fold_num + 1):
+        train_user = data_factory.read_rating(
+            os.path.join(data_path, 'fold-{}'.format(f), 'train-fold_{}-users.dat'.format(f)))
+        train_item = data_factory.read_rating(
+            os.path.join(data_path, 'fold-{}'.format(f), 'train-fold_{}-items.dat'.format(f)))
+        # in case of training only on training and test sets
+        if os.path.exists(os.path.join(data_path, 'fold-{}'.format(f), 'validation-fold_{}-users.dat'.format(f))):
+            valid_user = data_factory.read_rating(
+                os.path.join(data_path, 'fold-{}'.format(f), 'validation-fold_{}-users.dat'.format(f)))
+        else:
+            valid_user = None
+        test_user = data_factory.read_rating(
+            os.path.join(data_path, 'fold-{}'.format(f), 'test-fold_{}-users.dat'.format(f)))
+
+
+
+        fold_res_dir = os.path.join(res_dir, 'fold-{}'.format(f))
+        if not os.path.exists(fold_res_dir):
+            os.makedirs(fold_res_dir)
+        # train_user = data_factory.read_rating(glob.glob(data_path + '/train-fold_*-users.dat')[0])
+        # train_item = data_factory.read_rating(glob.glob(data_path + '/train-fold_*-items.dat')[0])
+        # valid_user = data_factory.read_rating(glob.glob(data_path + '/validation-fold_*-users.dat')[0])
+        # test_user = data_factory.read_rating(glob.glob(data_path + '/test-fold_*-users.dat')[0])
+
+        print "==========================================================================================="
+        print ('Training on fold %d' %f)
+        if content_mode == 'cnn_cae':
+
+            ConvCAEMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
+                      lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
+                      give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim,
+                      num_kernel_per_ws=num_kernel_per_ws,
+                      train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
+                      attributes_X=features_matrix, att_dim=att_dim)
+        elif content_mode == 'cnn':
+            ConvMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
+                   lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
+                   give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
+                   train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
+        elif content_mode == 'cae':
+            # attributes dimension must be euall to u, and v vectors dimension
+            CAEMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
+                  lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, att_dim=dimension,
+                  give_item_weight=give_item_weight,
+                  train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
+                  attributes_X=features_matrix)
+        elif content_mode == 'mf':
+            MF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
+               lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension,
+               give_item_weight=give_item_weight,
+               train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
+
+if grid_search:
+
+    # To avoid long training time, it runs on 1 fold only.
+
+    # general params
+
+    res_dir = args.res_dir
+    if not os.path.exists(res_dir):
+        os.makedirs(res_dir)
+    sys.stdout = Logger(os.path.join(res_dir, 'log.txt'))
+    dimension = args.dimension
+    max_iter = args.max_iter
+    give_item_weight = args.give_item_weight
+
+    # Hyperparameters options
+    lambda_u_list = [0.01, 0.1,0.10]  # [0.001, 0.01, 0.1, 1, 10, 100, 1000]
+    lambda_v_list = [0.01, 0.1, 10, 100, 1000]  # [0.01, 0.1, 1, 10, 100, 1000, 1000, 100000]
+    confidence_mods = ['c']  # TODO: , 'user-dependant'] # c: constant, ud: user_dependent
+    content_mods = ['mf','cnn_cae','cnn','cae']  # ['cnn_cae','cnn']
+    att_dims = [10, 20, 100, 200]  # [10, 20, 50, 100, 200]
+    num_config = len(list(itertools.product(lambda_u_list, lambda_v_list, confidence_mods, content_mods)))
+
+    if 'cae' or 'cnn_cae' in confidence_mods:
+        num_config = (num_config * (len(att_dims) + 1)) / 2
+
+    # CNN params
+    emb_dim = args.emb_dim
+    pretrain_w2v = args.pretrain_w2v
+    max_length = args.max_length_document
+    num_kernel_per_ws = args.num_kernel_per_ws
+
+    if res_dir is None:
+        sys.exit("Argument missing - res_dir is required")
+    else:
+        if not os.path.exists(res_dir):
+            os.makedirs(res_dir)
+
+    fixed_res_dir = os.path.join(res_dir, 'U_V', 'fold-1')
     if not os.path.exists(fixed_res_dir):
         os.makedirs(fixed_res_dir)
 
@@ -220,7 +292,6 @@ if grid_search:
     CNN_X = D_all['X_sequence']
     vocab_size = len(D_all['X_vocab']) + 1
 
-
     if pretrain_w2v is None:
         init_W = None
     else:
@@ -230,36 +301,55 @@ if grid_search:
     if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
         os.remove(os.path.join(fixed_res_dir, 'score.npy'))
 
-    all_avg_results ={}
-    num_config = len(list(itertools.product(lambda_u_list, lambda_v_list, confidence_mods, content_mods)))
+    all_avg_results = {}
+    all_val_rmse = {}
     c = 1
-    for lambda_u, lambda_v, confidence_mod, content_mode in itertools.product(lambda_u_list, lambda_v_list, confidence_mods, content_mods):
+
+    # num_folds = 5
+    # for f in range(1,num_folds+1):
+    fold = 1
+    train_user = data_factory.read_rating(
+        os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
+    train_item = data_factory.read_rating(
+        os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
+    valid_user = data_factory.read_rating(
+        os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
+    test_user = data_factory.read_rating(
+        os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
+
+    print('Fold paths:')
+    print(os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
+    print(os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
+    print(os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
+    print(os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
+
+    for lambda_u, lambda_v, confidence_mod, content_mode in itertools.product(lambda_u_list, lambda_v_list,
+                                                                              confidence_mods, content_mods):
         experiment = '{}-{}-{}-{}'.format(lambda_u, lambda_v, confidence_mod, content_mode)
         if content_mode == 'cnn_cae':
             for att_dim in att_dims:
                 experiment_cae = experiment + '-{}'.format(att_dim)
-                experiment_dir = os.path.join(res_dir,experiment_cae)
+                experiment_dir = os.path.join(res_dir, experiment_cae)
                 if not os.path.exists(experiment_dir):
                     os.makedirs(experiment_dir)
                 print "==========================================================================================="
-                print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod%s" \
-                      %  (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
-                print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
+                print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod: %s" \
+                      % (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
+                print "\tContent: %s" % ('Text and item attributes\n\tAttributes latent vector dim %d' % att_dim)
+
                 c += 1
                 # Read item's attributes
                 labels, features_matrix = data_factory.read_attributes(os.path.join(aux_path + 'paper_attributes.tsv'))
 
-                # num_folds = 5
-                # for f in range(1,num_folds+1):
-                fold = 1
-                train_user = data_factory.read_rating(os.path.join (data_path,'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
-                train_item = data_factory.read_rating(os.path.join (data_path,'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
-                valid_user = data_factory.read_rating(os.path.join (data_path,'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
-                test_user = data_factory.read_rating(os.path.join (data_path,'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
 
-                ConvCAEMF(max_iter=max_iter, res_dir=fixed_res_dir, state_log_dir=os.path.join(experiment_dir,'fold-{}'.format(fold)),
-                          lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
-                          give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
+
+                tr_eval, val_eval, te_eval = \
+                    ConvCAEMF(max_iter=max_iter, res_dir=fixed_res_dir,
+                          state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
+                          lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size,
+                          init_W=init_W,
+                          give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim,
+                          num_kernel_per_ws=num_kernel_per_ws,
                           train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
                           attributes_X=features_matrix, att_dim=att_dim)
 
@@ -269,31 +359,34 @@ if grid_search:
 
                 results = evaluator.eval_experiment(splits_dir)
                 avg_results = list(map(float, results[-1][1:]))
-                all_avg_results[experiment_cae]=avg_results
+                all_avg_results[experiment_cae] = avg_results
                 pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
+                all_val_rmse[experiment_cae] = [tr_eval, val_eval, te_eval]
 
         elif content_mode == 'cnn':
             experiment_dir = os.path.join(res_dir, experiment)
             if not os.path.exists(experiment):
                 os.makedirs(experiment)
             print "==========================================================================================="
-            print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod%s" \
+            print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod: %s" \
                   % (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
             # print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
-            print "\tContent: %s" % ('Text and item attributes\n\tAttributes latent vector dim %d' % att_dim)
-            c += 1
-            c += 1
+            print "\tContent: %s" % 'Text'
 
-            train_user = data_factory.read_rating(
-                os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
-            train_item = data_factory.read_rating(
-                os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
-            valid_user = data_factory.read_rating(
-                os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
-            test_user = data_factory.read_rating(
-                os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
+            c += 1
+            # fold = 1
+            # train_user = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
+            # train_item = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
+            # valid_user = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
+            # test_user = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
 
-            ConvMF(max_iter=max_iter, res_dir=fixed_res_dir, state_log_dir=os.path.join(experiment_dir,'fold-{}'.format(fold)),
+            tr_eval, val_eval, te_eval = \
+                ConvMF(max_iter=max_iter, res_dir=fixed_res_dir,
+                   state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
                    lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
                    give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
                    train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
@@ -305,7 +398,99 @@ if grid_search:
             all_avg_results[experiment] = avg_results
             pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
 
-    # print 'Writing avg results for all sets of configuratoins to %s' % os.path.join(res_dir,'all_avg_results.npy')
-    # pickl.dump(all_avg_results, open(os.path.join(res_dir,'all_avg_results.dat'), "wb"))
-    print 'Writing avg results for all sets of configuratoins to %s' % os.path.join(res_dir,'all_avg_results_tanh.dat')
-    pickl.dump(all_avg_results, open(os.path.join(res_dir,'all_avg_results_tanh.dat'), "wb"))
+            #Stor rmse
+            all_val_rmse[experiment] = [tr_eval, val_eval, te_eval]
+
+        elif content_mode == 'cae':
+            for att_dim in att_dims:
+                experiment_cae = experiment + '-{}'.format(att_dim)
+                experiment_dir = os.path.join(res_dir, experiment_cae)
+                if not os.path.exists(experiment_dir):
+                    os.makedirs(experiment_dir)
+                print "==========================================================================================="
+                print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod: %s" \
+                      % (c, num_config, lambda_u, lambda_v,
+                         ('Constant' if confidence_mod == 'c' else 'user-dependent'))
+                print "\tContent: %s" % ('Attributes\n\tAttributes latent vector dim %d' % att_dim)
+
+                c += 1
+                # Read item's attributes
+                labels, features_matrix = data_factory.read_attributes(
+                    os.path.join(aux_path + 'paper_attributes.tsv'))
+
+                # # num_folds = 5
+                # # for f in range(1,num_folds+1):
+                # fold = 1
+                # train_user = data_factory.read_rating(
+                #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
+                # train_item = data_factory.read_rating(
+                #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
+                # valid_user = data_factory.read_rating(
+                #     os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
+                # test_user = data_factory.read_rating(
+                #     os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
+
+                # attributes dimension must be equal to u, and v vectors dimension
+                tr_eval, val_eval, te_eval = CAEMF(max_iter=max_iter, res_dir=fixed_res_dir,
+                      state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
+                      lambda_u=lambda_u, lambda_v=lambda_v, dimension=att_dim, att_dim=att_dim,
+                      give_item_weight=give_item_weight,
+                      train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
+                      attributes_X=features_matrix)
+
+                evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
+                if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
+                    os.remove(os.path.join(fixed_res_dir, 'score.npy'))
+
+                results = evaluator.eval_experiment(splits_dir)
+                avg_results = list(map(float, results[-1][1:]))
+                all_avg_results[experiment_cae] = avg_results
+                pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
+
+                #Stor rmse
+                all_val_rmse[experiment_cae] = [tr_eval, val_eval, te_eval]
+
+        elif content_mode == 'mf':
+
+            experiment_dir = os.path.join(res_dir, experiment)
+            if not os.path.exists(experiment):
+                os.makedirs(experiment)
+            print "==========================================================================================="
+            print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod: %s" \
+                  % (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
+            # print "\tContent: %s" % ('Text and item attributes' if content_mode == 'cnn_cae' else 'Text')
+            print "\tContent: %s" % 'Vanilla Matrix factorization'
+
+            c += 1
+            # fold = 1
+            # train_user = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
+            # train_item = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
+            # valid_user = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
+            # test_user = data_factory.read_rating(
+            #     os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
+
+            tr_eval, val_eval, te_eval =\
+                MF(max_iter=max_iter, res_dir=fixed_res_dir,
+               state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
+               lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension,
+               give_item_weight=give_item_weight,
+               train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
+
+            evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
+            if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
+                os.remove(os.path.join(fixed_res_dir, 'score.npy'))
+            results = evaluator.eval_experiment(splits_dir)
+            avg_results = list(map(float, results[-1][1:]))
+            all_avg_results[experiment] = avg_results
+            pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
+
+            all_val_rmse[experiment]=[tr_eval, val_eval, te_eval]
+
+    print 'Writing avg results for all sets of configuratoins to %s' % os.path.join(res_dir, 'all_avg_results_tanh.dat')
+    pickl.dump(all_avg_results, open(os.path.join(res_dir, 'all_avg_results_tanh.dat'), "wb"))
+    print 'Writing rmse for all sets of configuratoins to %s' % os.path.join(res_dir, 'all_rmse.dat')
+    pickl.dump(all_val_rmse, open(os.path.join(res_dir, 'all_rmse.dat'), "wb"))
+
