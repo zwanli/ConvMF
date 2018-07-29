@@ -378,15 +378,7 @@ if grid_search:
             print "\tContent: %s" % 'Text'
 
             c += 1
-            # fold = 1
-            # train_user = data_factory.read_rating(
-            #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-users.dat'.format(fold)))
-            # train_item = data_factory.read_rating(
-            #     os.path.join(data_path, 'fold-{}'.format(fold), 'train-fold_{}-items.dat'.format(fold)))
-            # valid_user = data_factory.read_rating(
-            #     os.path.join(data_path, 'fold-{}'.format(fold), 'validation-fold_{}-users.dat'.format(fold)))
-            # test_user = data_factory.read_rating(
-            #     os.path.join(data_path, 'fold-{}'.format(fold), 'test-fold_{}-users.dat'.format(fold)))
+
             if confidence_mod == 'c':
                 give_item_weight = False
             elif confidence_mod == 'w':
@@ -462,7 +454,10 @@ if grid_search:
             print "\tContent: %s" % 'Vanilla Matrix factorization'
 
             c += 1
-
+            if confidence_mod == 'c':
+                give_item_weight = False
+            elif confidence_mod == 'w':
+                give_item_weight = True
             tr_eval, val_eval, te_eval =\
                 MF(max_iter=max_iter, res_dir=fixed_res_dir,
                state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
