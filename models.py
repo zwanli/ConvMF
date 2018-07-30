@@ -163,7 +163,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
                 sub_loss[j] = sub_loss[j] + a * np.sum((U_j.dot(V[j])) * R_j)
                 sub_loss[j] = sub_loss[j] - 0.5 * np.dot(V[j].dot(tmp_A), V[j])
             else:
-                print 'deal with this'
+                #print 'deal with this'
                 V[j] = theta[j]
 
         loss = loss + np.sum(sub_loss)
