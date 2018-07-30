@@ -516,9 +516,9 @@ class CNN_CAE_transfer_module():
             return mse + contractive
 
         '''Transfer layer '''
-        if cae_N_hidden != nb_filters:
-            sys.exit("For the transfer layer to work ''for now'' the attributes latent vector dimension (--att_dim)"
-                     " must equal the number of filters (kernal) of the conv. layer (--num_kernel_per_ws)")
+        # if cae_N_hidden != nb_filters:
+        #     sys.exit("For the transfer layer to work ''for now'' the attributes latent vector dimension (--att_dim)"
+        #              " must equal the number of filters (kernal) of the conv. layer (--num_kernel_per_ws)")
         # combine the outputs of boths modules
         model_internal = Sequential(name='Transfer_ResBlock')
         model_internal.add(Conv1D(nb_filters / 2, 1, activation="relu",
@@ -529,9 +529,9 @@ class CNN_CAE_transfer_module():
 
         reshape = Reshape(target_shape=(cae_N_hidden, 1), name='reshape_encoded')(encoded)  # chanels last
         residual = model_internal(reshape)
-
-        shortcut = encoded
-        transfered = add([residual, shortcut])
+        transfered = residual
+        # shortcut = encoded
+        # transfered = add([residual, shortcut])
 
         ''' Adding CAE output to CNN output '''
         flatten_.append(transfered)
