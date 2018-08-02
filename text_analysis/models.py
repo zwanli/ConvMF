@@ -451,6 +451,7 @@ class CNN_CAE_transfer_module():
                  init_W=None, cae_N_hidden=50, nb_features=17):
 
         ''' CNN Module'''
+        model_summary  = open('model_summary','w')
         self.max_len = max_len
         max_features = vocab_size
         vanila_dimension = 200
@@ -488,7 +489,8 @@ class CNN_CAE_transfer_module():
             #     pool_size=(self.max_len - i + 1, 1)))
             model_internal.add(MaxPooling2D(pool_size=(self.max_len - i + 1, 1), name='maxpool2d_' + str(i)))
             model_internal.add(Flatten())
-            plot_model(model_internal, 'model_cnn_cae_transfer_conv2d_%d.png'%i, show_shapes=True)
+            # plot_model(model_internal, 'model_cnn_cae_transfer_conv2d_%d.png'%i, show_shapes=True)
+            model_internal.summary(print_fn=lambda x: model_summary.write(x + '\n'))
             flatten = model_internal(reshape)
             flatten_.append(flatten)
 
@@ -532,7 +534,8 @@ class CNN_CAE_transfer_module():
         residual = model_internal(reshape)
         transfered = residual
 
-        plot_model(model_internal,'model_cnn_cae_transfer_transferblock.png',show_shapes=True)
+        # plot_model(model_internal,'model_cnn_cae_transfer_transferblock.png',show_shapes=True)
+        model_internal.summary(print_fn=lambda x: model_summary.write(x + '\n'))
         # shortcut = encoded
         # transfered = add([residual, shortcut])
 
@@ -566,7 +569,8 @@ class CNN_CAE_transfer_module():
         # plot_model(model, to_file='model.png')
 
         self.model = model
-        plot_model(model, to_file='model_cnn_cae_transfer.png',show_shapes=True)
+        # plot_model(model, to_file='model_cnn_cae_transfer.png',show_shapes=True)
+        model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
 
     def load_model(self, model_path):
         self.model.load_weights(model_path)
