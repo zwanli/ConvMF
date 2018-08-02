@@ -488,6 +488,7 @@ class CNN_CAE_transfer_module():
             #     pool_size=(self.max_len - i + 1, 1)))
             model_internal.add(MaxPooling2D(pool_size=(self.max_len - i + 1, 1), name='maxpool2d_' + str(i)))
             model_internal.add(Flatten())
+            plot_model(model_internal, 'model_cnn_cae_transfer_conv2d_%d.png'%i, show_shapes=True)
             flatten = model_internal(reshape)
             flatten_.append(flatten)
 
@@ -521,15 +522,17 @@ class CNN_CAE_transfer_module():
         #              " must equal the number of filters (kernal) of the conv. layer (--num_kernel_per_ws)")
         # combine the outputs of boths modules
         model_internal = Sequential(name='Transfer_ResBlock')
-        model_internal.add(Conv1D(nb_filters / 2, 1, activation="relu",
+        model_internal.add(Conv1D( cae_N_hidden, 1, activation="relu",
                                   name='Res_conv2d_1', input_shape=(cae_N_hidden, 1)))
-        model_internal.add(Conv1D(nb_filters, 1, activation="relu", name='Res_conv2d_2'))
+        # model_internal.add(Conv1D(cae_N_hidden, 1, activation="relu", name='Res_conv2d_2'))
         model_internal.add(MaxPooling1D(pool_size=cae_N_hidden, name='Res_maxpool1d'))
         model_internal.add(Flatten())
 
         reshape = Reshape(target_shape=(cae_N_hidden, 1), name='reshape_encoded')(encoded)  # chanels last
         residual = model_internal(reshape)
         transfered = residual
+
+        plot_model(model_internal,'model_cnn_cae_transfer_transferblock.png',show_shapes=True)
         # shortcut = encoded
         # transfered = add([residual, shortcut])
 
@@ -563,7 +566,7 @@ class CNN_CAE_transfer_module():
         # plot_model(model, to_file='model.png')
 
         self.model = model
-        # plot_model(model, to_file='model_cnn_cae_transfer.png',show_shapes=True)
+        plot_model(model, to_file='model_cnn_cae_transfer.png',show_shapes=True)
 
     def load_model(self, model_path):
         self.model.load_weights(model_path)

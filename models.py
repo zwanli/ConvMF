@@ -101,6 +101,8 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
         item_weight = np.array([math.sqrt(len(i))
                                 for i in Train_R_J], dtype=float)
         item_weight = (float(num_item) / item_weight.sum()) * item_weight
+        item_weight[item_weight == 0] = 1
+
     else:
         item_weight = np.ones(num_item, dtype=float)
 
@@ -274,6 +276,8 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
         item_weight = np.array([math.sqrt(len(i))
                                 for i in Train_R_J], dtype=float)
         item_weight = (float(num_item) / item_weight.sum()) * item_weight
+        item_weight[item_weight == 0] = 1
+
     else:
         item_weight = np.ones(num_item, dtype=float)
 
@@ -442,6 +446,8 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
         item_weight = np.array([math.sqrt(len(i))
                                 for i in Train_R_J], dtype=float)
         item_weight = (float(num_item) / item_weight.sum()) * item_weight
+        item_weight[item_weight == 0] = 1
+
     else:
         item_weight = np.ones(num_item, dtype=float)
 
@@ -608,6 +614,8 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
         item_weight = np.array([math.sqrt(len(i))
                                 for i in Train_R_J], dtype=float)
         item_weight = (float(num_item) / item_weight.sum()) * item_weight
+        item_weight[item_weight == 0] = 1
+
     else:
         item_weight = np.ones(num_item, dtype=float)
 
