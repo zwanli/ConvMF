@@ -256,8 +256,8 @@ if grid_search:
     give_item_weight = args.give_item_weight
 
     # Hyperparameters options
-    lambda_u_list = [0.01, 0.1,1, 10]  # [0.001, 0.01, 0.1, 1, 10, 100, 1000]
-    lambda_v_list = [ 0.1, 10, 100, 1000]  # [0.01, 0.1, 1, 10, 100, 1000, 1000, 100000]
+    lambda_u_list = [0.01, 0.1,1]  # [0.001, 0.01, 0.1, 1, 10, 100, 1000]
+    lambda_v_list = [100, 1000]  # [0.01, 0.1, 1, 10, 100, 1000, 1000, 100000]
     confidence_mods = ['c','w']  # TODO: , 'user-dependant'] # c: constant, ud: user_dependent
     content_mods = ['cnn_cae']#['mf','cnn_cae','cnn','cae']  # ['cnn_cae','cnn']
     att_dims = [10, 20, 50, 100, 200]  # [10, 20, 50, 100, 200]
@@ -340,9 +340,6 @@ if grid_search:
                 c += 1
                 # Read item's attributes
                 labels, features_matrix = data_factory.read_attributes(os.path.join(aux_path + 'paper_attributes.tsv'))
-
-                num_kernel_per_ws = att_dim
-
                 if confidence_mod == 'c':
                     give_item_weight = False
                 elif confidence_mod == 'w':
@@ -357,14 +354,14 @@ if grid_search:
                           train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
                           attributes_X=features_matrix, att_dim=att_dim)
 
-                evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
-                if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
-                    os.remove(os.path.join(fixed_res_dir, 'score.npy'))
-
-                results = evaluator.eval_experiment(splits_dir)
-                avg_results = list(map(float, results[-1][1:]))
-                all_avg_results[experiment_cae] = avg_results
-                pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
+                # evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
+                # if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
+                #     os.remove(os.path.join(fixed_res_dir, 'score.npy'))
+                #
+                # results = evaluator.eval_experiment(splits_dir)
+                # avg_results = list(map(float, results[-1][1:]))
+                # all_avg_results[experiment_cae] = avg_results
+                # pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
                 all_val_rmse[experiment_cae] = [tr_eval, val_eval, te_eval]
 
         elif content_mode == 'cnn':
@@ -390,13 +387,13 @@ if grid_search:
                    lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
                    give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
                    train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
-            evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
-            if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
-                os.remove(os.path.join(fixed_res_dir, 'score.npy'))
-            results = evaluator.eval_experiment(splits_dir)
-            avg_results = list(map(float, results[-1][1:]))
-            all_avg_results[experiment] = avg_results
-            pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
+            # evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
+            # if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
+            #     os.remove(os.path.join(fixed_res_dir, 'score.npy'))
+            # results = evaluator.eval_experiment(splits_dir)
+            # avg_results = list(map(float, results[-1][1:]))
+            # all_avg_results[experiment] = avg_results
+            # pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
 
             #Stor rmse
             all_val_rmse[experiment] = [tr_eval, val_eval, te_eval]
@@ -430,14 +427,14 @@ if grid_search:
                       train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
                       attributes_X=features_matrix)
 
-                evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
-                if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
-                    os.remove(os.path.join(fixed_res_dir, 'score.npy'))
-
-                results = evaluator.eval_experiment(splits_dir)
-                avg_results = list(map(float, results[-1][1:]))
-                all_avg_results[experiment_cae] = avg_results
-                pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
+                # evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
+                # if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
+                #     os.remove(os.path.join(fixed_res_dir, 'score.npy'))
+                #
+                # results = evaluator.eval_experiment(splits_dir)
+                # avg_results = list(map(float, results[-1][1:]))
+                # all_avg_results[experiment_cae] = avg_results
+                # pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
 
                 #Stor rmse
                 all_val_rmse[experiment_cae] = [tr_eval, val_eval, te_eval]
@@ -465,13 +462,13 @@ if grid_search:
                give_item_weight=give_item_weight,
                train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
 
-            evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
-            if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
-                os.remove(os.path.join(fixed_res_dir, 'score.npy'))
-            results = evaluator.eval_experiment(splits_dir)
-            avg_results = list(map(float, results[-1][1:]))
-            all_avg_results[experiment] = avg_results
-            pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
+            # evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
+            # if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
+            #     os.remove(os.path.join(fixed_res_dir, 'score.npy'))
+            # results = evaluator.eval_experiment(splits_dir)
+            # avg_results = list(map(float, results[-1][1:]))
+            # all_avg_results[experiment] = avg_results
+            # pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
 
             all_val_rmse[experiment]=[tr_eval, val_eval, te_eval]
 

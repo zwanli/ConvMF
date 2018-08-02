@@ -54,31 +54,31 @@ def map_theta_to_V(theta,id_to_original_map, m,k ):
 
 
 def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
-              R, attributes_X, CNN_X, vocab_size, init_W=None, give_item_weight=False,
-              max_iter=50, lambda_u=1, lambda_v=100, dimension=50,
+              R, attributes_X, CNN_X, vocab_size, init_W,att_dim,
+              max_iter, lambda_u, lambda_v, dimension,
               dropout_rate=0.2, emb_dim=200, max_len=300, num_kernel_per_ws=100,
-              a=1, b=0.01, att_dim=50):
+              a=1, b=0.01,  give_item_weight=False,):
     # explicit setting
     # a = 1
     # b = 0.01
 
     num_user = R.shape[0]
     num_item = R.shape[1]
+
     num_features = attributes_X.shape[1]
-    PREV_LOSS = -1e-50
+
+    '''prepare path to store results and log'''
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
     os.chdir(res_dir)
-
     if not os.path.exists(state_log_dir):
         os.makedirs(state_log_dir)
     f1 = open(state_log_dir + '/state.log', 'w')
 
-    # log metrics into tf.summary
+    '''log metrics using tf.summary '''
     log_dir_name = os.path.basename(os.path.dirname(state_log_dir+'/'))
     log_dir = os.path.join(state_log_dir,log_dir_name)
     logger_tb = Tb_Logger(log_dir)
-
     # indicate folder to save, plus other options
     tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=0,
                               write_graph=False, write_images=False)
@@ -90,13 +90,14 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     Train_R_J = train_item[1]
     Test_R = test_user[1]
 
+    # check if the dataset has validation set
     no_validation = False
     if valid_user:
         Valid_R = valid_user[1]
     else:
         no_validation = True
 
-
+    #assign weights to each item according to the number of time the item was rated
     if give_item_weight is True:
         item_weight = np.array([math.sqrt(len(i))
                                 for i in Train_R_J], dtype=float)
@@ -105,20 +106,20 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     else:
         item_weight = np.ones(num_item, dtype=float)
 
-    pre_val_eval = 1e10
-
+    '''initialize'''
     # cnn_cae_module = CNN_CAE_module(dimension, vocab_size, dropout_rate,
     #                             emb_dim, max_len, num_kernel_per_ws, init_W,cae_N_hidden=att_dim, nb_features=num_features)
     cnn_cae_module = CNN_CAE_transfer_module(dimension, vocab_size, dropout_rate,
                                     emb_dim, max_len, num_kernel_per_ws, init_W, cae_N_hidden=att_dim,
                                     nb_features=num_features)
-
     theta = cnn_cae_module.get_projection_layer(CNN_X, attributes_X)
     np.random.seed(133)
     U = np.random.uniform(size=(num_user, dimension))
     V = theta
 
     print ('Training CNN-CAE-MF ...')
+    pre_val_eval = -1e10
+    PREV_LOSS = -1e-50
     endure_count = 5
     count = 0
     converge_threshold = 1e-4
@@ -130,6 +131,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
         tic = time.time()
         print "%d iteration\t(patience: %d)" % (iteration, count)
 
+        # Update U
         VV = b * (V.T.dot(V)) + lambda_u * np.eye(dimension)
         sub_loss = np.zeros(num_user)
 
@@ -146,6 +148,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
 
         loss = loss + np.sum(sub_loss)
 
+        # Update V
         sub_loss = np.zeros(num_item)
         UU = b * (U.T.dot(U))
         for j in xrange(num_item):
@@ -164,10 +167,11 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
                 sub_loss[j] = sub_loss[j] + a * np.sum((U_j.dot(V[j])) * R_j)
                 sub_loss[j] = sub_loss[j] - 0.5 * np.dot(V[j].dot(tmp_A), V[j])
             else:
-                #print 'deal with this'
+                #in case the item has no ratings
                 V[j] = theta[j]
-
         loss = loss + np.sum(sub_loss)
+
+        # Update theta
         seed = np.random.randint(100000)
         history = cnn_cae_module.train(CNN_X, V, att_train=attributes_X, item_weight=item_weight,
                                        seed=seed,callbacks_list=callbacks_list)
@@ -176,6 +180,10 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
 
         loss = loss - 0.5 * lambda_v * cnn_loss * num_item
 
+        toc = time.time()
+        elapsed = toc - tic
+
+        '''calculate RMSE'''
         tr_eval = eval_RMSE(Train_R_I, U, V, train_user[0])
         if not no_validation:
             val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
@@ -183,38 +191,31 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
             val_eval = -1
         te_eval = eval_RMSE(Test_R, U, V, test_user[0])
 
+        ''' write tf.summary'''
         logger_tb.log_scalar('train_rmse',tr_eval,iteration)
         if not no_validation:
             logger_tb.log_scalar('eval_rmse',val_eval,iteration)
         logger_tb.log_scalar('test_rmse',te_eval,iteration)
         logger_tb.writer.flush()
 
-        toc = time.time()
-        elapsed = toc - tic
 
+        '''Calculate converge and stor best values of U,V,theta'''
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
-        if (val_eval < pre_val_eval):
-        # if (loss > PREV_LOSS):
+        # if (val_eval < pre_val_eval):
+        if (loss > PREV_LOSS):
             #count = 0
             print ("likelihood is increasing!")
             cnn_cae_module.save_model(res_dir + '/CNN_CAE_weights.hdf5')
             np.savetxt(res_dir + '/final-U.dat', U)
             np.savetxt(res_dir + '/final-V.dat', V)
             np.savetxt(res_dir + '/theta.dat', theta)
+            best_train_rmse = tr_eval
+            best_test_rmse = te_eval
+            best_val_rmse = val_eval
 
         else:
             count = count + 1
-
-        # if (val_eval < pre_val_eval):
-        # count = 0
-
-        #     cnn_cae_module.save_model(res_dir + '/CNN_CAE_weights.hdf5')
-        #     np.savetxt(res_dir + '/final-U.dat', U)
-        #     np.savetxt(res_dir + '/final-V.dat', V)
-        #     np.savetxt(res_dir + '/theta.dat', theta)
-        # else:
-        #     count = count + 1
 
         pre_val_eval = val_eval
 
@@ -222,16 +223,13 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
             loss, elapsed, converge, tr_eval, val_eval, te_eval)
         f1.write("Loss: %.5f Elpased: %.4fs Converge: %.6f Tr: %.5f Val: %.5f Te: %.5f\n" % (
             loss, elapsed, converge, tr_eval, val_eval, te_eval))
-
         if (count == endure_count):
             break
 
         PREV_LOSS = loss
         iteration += 1
     f1.close()
-    # o = cnn_cae_module.get_intermediate_output(CNN_X, attributes_X)
-    # np.savetxt('cnn_cae_tanh.csv', o, fmt='%1.4f',delimiter=',')
-    return tr_eval, val_eval, te_eval
+    return best_train_rmse, best_test_rmse, best_val_rmse
 
 def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user,
            R, CNN_X, vocab_size, init_W=None, give_item_weight=False,
@@ -365,9 +363,9 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
 
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
-        if (val_eval < pre_val_eval):
+        # if (val_eval < pre_val_eval):
 
-        # if (loss > PREV_LOSS):
+        if (loss > PREV_LOSS):
             #count = 0
 
             print ("likelihood is increasing!")
@@ -375,6 +373,9 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
             np.savetxt(res_dir + '/final-U.dat', U)
             np.savetxt(res_dir + '/final-V.dat', V)
             np.savetxt(res_dir + '/theta.dat', theta)
+            best_train_rmse = tr_eval
+            best_test_rmse = te_eval
+            best_val_rmse = val_eval
 
         else:
             count = count + 1
@@ -401,7 +402,7 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
         PREV_LOSS = loss
         iteration += 1
     f1.close()
-    return tr_eval, val_eval, te_eval
+    return best_train_rmse, best_test_rmse, best_val_rmse
 
 def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
               R, attributes_X, give_item_weight=False,
@@ -533,8 +534,8 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
-        if (val_eval < pre_val_eval):
-        # if (loss > PREV_LOSS):
+        # if (val_eval < pre_val_eval):
+        if (loss > PREV_LOSS):
             #count = 0
 
             print ("likelihood is increasing!")
@@ -542,6 +543,9 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
             np.savetxt(res_dir + '/final-U.dat', U)
             np.savetxt(res_dir + '/final-V.dat', V)
             np.savetxt(res_dir + '/theta.dat', theta)
+            best_train_rmse = tr_eval
+            best_test_rmse = te_eval
+            best_val_rmse = val_eval
 
         else:
             count = count + 1
@@ -569,7 +573,7 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
         iteration += 1
 
     f1.close()
-    return tr_eval, val_eval, te_eval
+    return best_train_rmse, best_test_rmse, best_val_rmse
 
 
 def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
@@ -697,13 +701,15 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
 
-        # if (loss > PREV_LOSS):
-        if (val_eval < pre_val_eval):
-
+        if (loss > PREV_LOSS):
+        # if (val_eval < pre_val_eval):
             #count = 0
             print ("likelihood is increasing!")
             np.savetxt(res_dir + '/final-U.dat', U)
             np.savetxt(res_dir + '/final-V.dat', V)
+            best_train_rmse = tr_eval
+            best_test_rmse = te_eval
+            best_val_rmse = val_eval
         else:
             count = count + 1
 
@@ -728,4 +734,4 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
         iteration += 1
     f1.close()
 
-    return tr_eval, val_eval, te_eval
+    return best_train_rmse, best_test_rmse, best_val_rmse
