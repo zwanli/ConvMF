@@ -61,7 +61,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     num_user = R.shape[0]
     num_item = R.shape[1]
     num_features = attributes_X.shape[1]
-    PREV_LOSS = 1e-50
+    PREV_LOSS = 1e50
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
 
@@ -96,21 +96,24 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     # CNN_X_initial = copy.deepcopy(CNN_X)
     # attributes_X_initial = np.copy(attributes_X)
 
+
     '''Add a mapper in the case of out-of-matrix'''
-    #items_idx is the items ids from the training set
-    items_idx, items_to_new_id_map = get_rated_items_idx_map(train_user[0])
     is_out_of_matrix = False
-    if len(items_idx) != num_item:
-        print('It apears to be out-of-matrix split with {} items not in train set'.format(num_item-len(items_idx)))
-        is_out_of_matrix = True
-        CNN_X_eval =  [ CNN_X[i] for i,t in enumerate(CNN_X) if i not in items_idx]
-        CNN_X =  [ CNN_X[i] for i in items_idx]
-
-        attributes_X_eval = np.delete(attributes_X,items_idx,0)
-        attributes_X = attributes_X[items_idx]
-
-        #items that belong to test+validation sets.
-        items_idx_eval = list(set.difference(set(range(num_item)),set(items_idx)))
+    #items_idx is the items ids from the training set
+    # items_idx, items_to_new_id_map = get_rated_items_idx_map(train_user[0])
+    ''' No need for this. We only consider items with missing ratings for the cold start case, 
+    but if the items are associated with content then we can use the content for training.'''
+    # if len(items_idx) != num_item:
+    #     print('It apears to be out-of-matrix split with {} items not in train set'.format(num_item-len(items_idx)))
+    #     is_out_of_matrix = True
+    #     CNN_X_eval =  [ CNN_X[i] for i,t in enumerate(CNN_X) if i not in items_idx]
+    #     CNN_X =  [ CNN_X[i] for i in items_idx]
+    #
+    #     attributes_X_eval = np.delete(attributes_X,items_idx,0)
+    #     attributes_X = attributes_X[items_idx]
+    #
+    #     #items that belong to test+validation sets.
+    #     items_idx_eval = list(set.difference(set(range(num_item)),set(items_idx)))
 
 
 
@@ -118,6 +121,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
         item_weight = np.array([math.sqrt(len(i))
                                 for i in Train_R_J], dtype=float)
         item_weight = (float(num_item) / item_weight.sum()) * item_weight
+        item_weight[item_weight == 0] = 1
     else:
         item_weight = np.ones(num_item, dtype=float)
 
@@ -183,7 +187,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
 
         loss = loss + np.sum(sub_loss)
         seed = np.random.randint(100000)
-        history = cnn_cae_module.train(CNN_X, V[items_idx], att_train=attributes_X, item_weight=item_weight[items_idx],
+        history = cnn_cae_module.train(CNN_X, V, att_train=attributes_X, item_weight=item_weight,
                                        seed=seed,callbacks_list=callbacks_list)
         theta = cnn_cae_module.get_projection_layer(CNN_X, attributes_X)
         if is_out_of_matrix:
@@ -221,7 +225,8 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
 
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
-        if (loss > PREV_LOSS):
+        if (val_eval < pre_val_eval):
+        # if (loss > PREV_LOSS):
             #count = 0
             print ("likelihood is increasing!")
             cnn_cae_module.save_model(res_dir + '/CNN_CAE_weights.hdf5')
@@ -238,6 +243,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
 
         else:
             count = count + 1
+
         # if (val_eval < pre_val_eval):
         # count = 0
 
@@ -275,7 +281,7 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
 
     num_user = R.shape[0]
     num_item = R.shape[1]
-    PREV_LOSS = 1e-50
+    PREV_LOSS = 1e50
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
     #f1 = open(res_dir + '/state.log', 'w')
@@ -305,21 +311,24 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
         no_validation = True
     '''Add a mapper in the case of out-of-matrix'''
     # items_idx is the items ids from the training set
-    items_idx, items_to_new_id_map = get_rated_items_idx_map(train_user[0])
+    # items_idx, items_to_new_id_map = get_rated_items_idx_map(train_user[0])
     is_out_of_matrix = False
-    if len(items_idx) != num_item:
-        print('It apears to be out-of-matrix split with {} items not in train set'.format(num_item-len(items_idx)))
-        is_out_of_matrix = True
-        CNN_X_eval = [CNN_X[i] for i, t in enumerate(CNN_X) if i not in items_idx]
-        CNN_X = [CNN_X[i] for i in items_idx]
-        # items that belong to test+validation sets.
-        items_idx_eval = list(set.difference(set(range(num_item)), set(items_idx)))
+    ''' No need for this. We only consider items with missing ratings for the cold start case, 
+    but if the items are associated with content then we can use the content for training.'''
+    # if len(items_idx) != num_item:
+    #     print('It apears to be out-of-matrix split with {} items not in train set'.format(num_item-len(items_idx)))
+    #     is_out_of_matrix = True
+    #     CNN_X_eval = [CNN_X[i] for i, t in enumerate(CNN_X) if i not in items_idx]
+    #     CNN_X = [CNN_X[i] for i in items_idx]
+    #     # items that belong to test+validation sets.
+    #     items_idx_eval = list(set.difference(set(range(num_item)), set(items_idx)))
 
 
     if give_item_weight is True:
         item_weight = np.array([math.sqrt(len(i))
                                 for i in Train_R_J], dtype=float)
         item_weight = (float(num_item) / item_weight.sum()) * item_weight
+        item_weight[item_weight == 0] = 1
     else:
         item_weight = np.ones(num_item, dtype=float)
 
@@ -382,7 +391,7 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
 
         loss = loss + np.sum(sub_loss)
         seed = np.random.randint(100000)
-        history = cnn_module.train(CNN_X, V[items_idx], item_weight[items_idx], seed,callbacks_list)
+        history = cnn_module.train(CNN_X, V, item_weight, seed,callbacks_list)
         theta = cnn_module.get_projection_layer(CNN_X)
         if is_out_of_matrix:
             theta = map_theta_to_V(theta, items_to_new_id_map, num_item, emb_dim)
@@ -419,7 +428,9 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
 
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
-        if (loss > PREV_LOSS):
+        if (val_eval < pre_val_eval):
+
+        # if (loss > PREV_LOSS):
             #count = 0
 
             print ("likelihood is increasing!")
@@ -473,7 +484,7 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
     num_user = R.shape[0]
     num_item = R.shape[1]
     num_features = attributes_X.shape[1]
-    PREV_LOSS = 1e-50
+    PREV_LOSS = 1e50
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
     if not os.path.exists(state_log_dir):
@@ -503,21 +514,24 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
     '''Add a mapper in the case of out-of-matrix'''
     #items_idx is the items ids from the training set
-    items_idx, items_to_new_id_map = get_rated_items_idx_map(train_user[0])
+    # items_idx, items_to_new_id_map = get_rated_items_idx_map(train_user[0])
     is_out_of_matrix = False
-    if len(items_idx) != num_item:
-        print('It apears to be out-of-matrix split with {} items not in train set'.format(num_item-len(items_idx)))
-        is_out_of_matrix = True
-        attributes_X_eval = np.delete(attributes_X,items_idx,0)
-        attributes_X = attributes_X[items_idx]
-
-        #items that belong to test+validation sets.
-        items_idx_eval = list(set.difference(set(range(num_item)),set(items_idx)))
+    ''' No need for this. We only consider items with missing ratings for the cold start case, 
+    but if the items are associated with content then we can use the content for training.'''
+    # if len(items_idx) != num_item:
+    #     print('It apears to be out-of-matrix split with {} items not in train set'.format(num_item-len(items_idx)))
+    #     is_out_of_matrix = True
+    #     attributes_X_eval = np.delete(attributes_X,items_idx,0)
+    #     attributes_X = attributes_X[items_idx]
+    #
+    #     #items that belong to test+validation sets.
+    #     items_idx_eval = list(set.difference(set(range(num_item)),set(items_idx)))
 
     if give_item_weight is True:
         item_weight = np.array([math.sqrt(len(i))
                                 for i in Train_R_J], dtype=float)
         item_weight = (float(num_item) / item_weight.sum()) * item_weight
+        item_weight[item_weight == 0] = 1
     else:
         item_weight = np.ones(num_item, dtype=float)
 
@@ -579,7 +593,7 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
         loss = loss + np.sum(sub_loss)
         seed = np.random.randint(100000)
-        history = cae_module.train(V[items_idx], item_weight[items_idx], seed, att_train=attributes_X,callbacks_list=callbacks_list)
+        history = cae_module.train(V, item_weight, seed, att_train=attributes_X,callbacks_list=callbacks_list)
         theta = cae_module.get_projection_layer(attributes_X)
         if is_out_of_matrix:
             theta = map_theta_to_V(theta, items_to_new_id_map, num_item, dimension)
@@ -618,8 +632,8 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
-
-        if (loss > PREV_LOSS):
+        if (val_eval < pre_val_eval):
+        # if (loss > PREV_LOSS):
             #count = 0
 
             print ("likelihood is increasing!")
@@ -674,7 +688,7 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
     num_user = R.shape[0]
     num_item = R.shape[1]
-    PREV_LOSS = 1e-50
+    PREV_LOSS = 1e50
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
     if not os.path.exists(state_log_dir):
@@ -706,6 +720,7 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
         item_weight = np.array([math.sqrt(len(i))
                                 for i in Train_R_J], dtype=float)
         item_weight = (float(num_item) / item_weight.sum()) * item_weight
+        item_weight[item_weight == 0] = 1
     else:
         item_weight = np.ones(num_item, dtype=float)
 
@@ -783,7 +798,9 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
 
-        if (loss > PREV_LOSS):
+        # if (loss > PREV_LOSS):
+        if (val_eval < pre_val_eval):
+
             #count = 0
 
             print ("likelihood is increasing!")

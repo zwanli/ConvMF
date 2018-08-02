@@ -379,7 +379,7 @@ class CAE_module():
         # plot_model(model, to_file='model.png')
 
         self.model = model
-        # plot_model(model, to_file='model.png',show_shapes=True)
+        # plot_model(model, to_file='model_cae.png',show_shapes=True)
 
     def contractive_autoencoder(self, X, lam=1e-3):
         X = X.reshape(X.shape[0], -1)
