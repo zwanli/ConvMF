@@ -68,7 +68,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     PREV_LOSS = -1e-50
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
-
+    os.chdir(res_dir)
 
     if not os.path.exists(state_log_dir):
         os.makedirs(state_log_dir)
