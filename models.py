@@ -202,8 +202,8 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
         '''Calculate converge and stor best values of U,V,theta'''
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
-        # if (val_eval < pre_val_eval):
-        if (loss > PREV_LOSS):
+        if (val_eval < pre_val_eval):
+        # if (loss > PREV_LOSS):
             #count = 0
             print ("likelihood is increasing!")
             cnn_cae_module.save_model(res_dir + '/CNN_CAE_weights.hdf5')
@@ -363,9 +363,8 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
 
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
-        # if (val_eval < pre_val_eval):
-
-        if (loss > PREV_LOSS):
+        if (val_eval < pre_val_eval):
+        # if (loss > PREV_LOSS):
             #count = 0
 
             print ("likelihood is increasing!")
@@ -534,8 +533,8 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
-        # if (val_eval < pre_val_eval):
-        if (loss > PREV_LOSS):
+        if (val_eval < pre_val_eval):
+        # if (loss > PREV_LOSS):
             #count = 0
 
             print ("likelihood is increasing!")
@@ -701,8 +700,8 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
         converge = abs((loss - PREV_LOSS) / PREV_LOSS)
 
 
-        if (loss > PREV_LOSS):
-        # if (val_eval < pre_val_eval):
+        # if (loss > PREV_LOSS):
+        if (val_eval < pre_val_eval):
             #count = 0
             print ("likelihood is increasing!")
             np.savetxt(res_dir + '/final-U.dat', U)
