@@ -299,6 +299,10 @@ class CNN_module():
         model.compile(optimizer='rmsprop', loss='mse')
         self.model = model
 
+        #write model summary
+        model_summary = open('model_summary', 'w')
+        self.model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
+
     def load_model(self, model_path):
         self.model.load_weights(model_path)
 
@@ -379,6 +383,8 @@ class CAE_module():
         # plot_model(model, to_file='model.png')
 
         self.model = model
+        model_summary = open('model_summary', 'w')
+        self.model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
         # plot_model(model, to_file='model_cae.png',show_shapes=True)
 
     def contractive_autoencoder(self, X, lam=1e-3):
@@ -415,6 +421,7 @@ class CAE_module():
 
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
+
 
     def train(self, V, item_weight, seed, att_train,callbacks_list):
         np.random.seed(seed)
