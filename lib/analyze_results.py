@@ -185,8 +185,9 @@ if __name__ == '__main__':
     print "==========================================================================================="
     print('outof-matrix results:')
     #outof-matrix path
-    path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/29-7-grid_search_outof-matrix/all_rmse.dat'
+    # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/29-7-grid_search_outof-matrix/all_rmse.dat'
     # path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/grid_search_28--6/outofmatrix/all_rmse.dat'
+    path= '/home/wanliz/data/Extended_ctr/convmf/citeulike_a_extended/results/4-8-grid_search_outof-matrix/all_rmse.dat'
     read_rmse(path)
     #outof-matrix path
     path = '/home/zaher/data/Extended_ctr/convmf/citeulike_a_extended/results/29-7-grid_search_outof-matrix/all_avg_results_tanh.dat'

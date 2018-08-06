@@ -53,6 +53,8 @@ class CNN_CAE_module():
                  init_W=None, cae_N_hidden=50, nb_features=17):
 
         ''' CNN Module'''
+        model_summary  = open('model_summary','w')
+
         self.max_len = max_len
         max_features = vocab_size
         vanila_dimension = 200
@@ -92,6 +94,7 @@ class CNN_CAE_module():
             model_internal.add(Flatten())
             flatten = model_internal(reshape)
             flatten_.append(flatten)
+            model_internal.summary(print_fn=lambda x: model_summary.write(x + '\n'))
 
         '''Fully Connect Layer & Dropout Layer'''
         # self.model.add_node(Dense(vanila_dimension, activation='tanh'),
@@ -145,6 +148,7 @@ class CNN_CAE_module():
                       loss={'joint_output': 'mse', 'cae_output': contractive_loss},
                       loss_weights={'joint_output': 1., 'cae_output': 1.})
         # plot_model(model, to_file='model.png')
+        model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
 
         self.model = model
         # plot_model(model, to_file='model.png',show_shapes=True)
@@ -299,6 +303,10 @@ class CNN_module():
         model.compile(optimizer='rmsprop', loss='mse')
         self.model = model
 
+        #write model summary
+        model_summary = open('model_summary', 'w')
+        self.model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
+
     def load_model(self, model_path):
         self.model.load_weights(model_path)
 
@@ -379,6 +387,8 @@ class CAE_module():
         # plot_model(model, to_file='model.png')
 
         self.model = model
+        model_summary = open('model_summary', 'w')
+        self.model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
         # plot_model(model, to_file='model_cae.png',show_shapes=True)
 
     def contractive_autoencoder(self, X, lam=1e-3):
@@ -415,6 +425,7 @@ class CAE_module():
 
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
+
 
     def train(self, V, item_weight, seed, att_train,callbacks_list):
         np.random.seed(seed)
@@ -524,9 +535,9 @@ class CNN_CAE_transfer_module():
         #              " must equal the number of filters (kernal) of the conv. layer (--num_kernel_per_ws)")
         # combine the outputs of boths modules
         model_internal = Sequential(name='Transfer_ResBlock')
-        model_internal.add(Conv1D( cae_N_hidden, 1, activation="relu",
+        model_internal.add(Conv1D( cae_N_hidden/2, 1, activation="relu",
                                   name='Res_conv2d_1', input_shape=(cae_N_hidden, 1)))
-        # model_internal.add(Conv1D(cae_N_hidden, 1, activation="relu", name='Res_conv2d_2'))
+        model_internal.add(Conv1D(cae_N_hidden, 1, activation="relu", name='Res_conv2d_2'))
         model_internal.add(MaxPooling1D(pool_size=cae_N_hidden, name='Res_maxpool1d'))
         model_internal.add(Flatten())
 
