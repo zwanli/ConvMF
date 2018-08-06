@@ -57,7 +57,7 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
               R, attributes_X, CNN_X, vocab_size, init_W,att_dim,
               max_iter, lambda_u, lambda_v, dimension,
               dropout_rate=0.2, emb_dim=200, max_len=300, num_kernel_per_ws=100,
-              a=1, b=0.01,  give_item_weight=False,):
+              a=1, b=0.01,  give_item_weight=False, use_transfer_block =True):
     # explicit setting
     # a = 1
     # b = 0.01
@@ -107,11 +107,14 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
         item_weight = np.ones(num_item, dtype=float)
 
     '''initialize'''
-    # cnn_cae_module = CNN_CAE_module(dimension, vocab_size, dropout_rate,
-    #                             emb_dim, max_len, num_kernel_per_ws, init_W,cae_N_hidden=att_dim, nb_features=num_features)
-    cnn_cae_module = CNN_CAE_transfer_module(dimension, vocab_size, dropout_rate,
+    if use_transfer_block:
+        cnn_cae_module = CNN_CAE_transfer_module(dimension, vocab_size, dropout_rate,
                                     emb_dim, max_len, num_kernel_per_ws, init_W, cae_N_hidden=att_dim,
                                     nb_features=num_features)
+    else:
+        cnn_cae_module = CNN_CAE_module(dimension, vocab_size, dropout_rate,
+                                    emb_dim, max_len, num_kernel_per_ws, init_W,cae_N_hidden=att_dim,
+                                        nb_features=num_features)
     theta = cnn_cae_module.get_projection_layer(CNN_X, attributes_X)
     np.random.seed(133)
     U = np.random.uniform(size=(num_user, dimension))

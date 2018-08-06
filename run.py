@@ -73,6 +73,8 @@ parser.add_argument("-w", "--num_kernel_per_ws", type=int,
                     help="Number of kernels per window size for CNN module (default: 100)", default=100)
 parser.add_argument("--content_mode", type=str, choices=['cnn', 'cnn_cae', 'cae', 'mf'],
                     help="Content to be used, CNN: textual content, CAE: auxiliary item features", default='cnn')
+parser.add_argument("--join_mode", type=str, choices=['concat', 'transfer'],
+                    help="Approach used to joing the outputs of CNN and CAE (default: transfer)", default='transfer')
 parser.add_argument("--att_dim", type=int,
                     help="Dimension of attributes latent vector (default: 50)", default=50)
 parser.add_argument("--grid_search", type=bool,
@@ -137,6 +139,11 @@ elif not grid_search:
     max_iter = args.max_iter
     give_item_weight = args.give_item_weight
     content_mode = args.content_mode
+    join_mode = args.join_mode
+    if join_mode == 'transfer':
+        use_transfer_block = True
+    else:
+        use_transfer_block = False
     if lambda_u is None:
         sys.exit("Argument missing - lambda_u is required")
     if lambda_v is None:
@@ -187,6 +194,8 @@ elif not grid_search:
         print "\tnum_kernel_per_ws: %d\n\tpretrained w2v data path - %s" % (num_kernel_per_ws, pretrain_w2v)
     print('\tItem weight %s ' % ('Constant (a=1,b=0,01)' if give_item_weight == False
                                else 'Constant (a=1,b=0,01). And f(n)'))
+    if 'cnn_cae' in content_mode:
+        print '\tJoin CNN and CAE outputs method: %s' % ('Transfer block' if use_transfer_block else 'Concatenation')
     print "==========================================================================================="
 
     for f in range(1, fold_num + 1):
@@ -222,7 +231,7 @@ elif not grid_search:
                       give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim,
                       num_kernel_per_ws=num_kernel_per_ws,
                       train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
-                      attributes_X=features_matrix, att_dim=att_dim)
+                      attributes_X=features_matrix, att_dim=att_dim,use_transfer_block=use_transfer_block)
         elif content_mode == 'cnn':
             ConvMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
                    lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
@@ -261,8 +270,13 @@ if grid_search:
     confidence_mods = ['c','w']  # TODO: , 'user-dependant'] # c: constant, ud: user_dependent
     content_mods = ['cnn_cae']#['mf','cnn_cae','cnn','cae']  # ['cnn_cae','cnn']
     att_dims = [10, 20, 50, 100, 200]  # [10, 20, 50, 100, 200]
-    num_config = len(list(itertools.product(lambda_u_list, lambda_v_list, confidence_mods, content_mods)))
+    join_mode = args.join_mode
+    if join_mode == 'transfer':
+        use_transfer_block = True
+    else:
+        use_transfer_block = False
 
+    num_config = len(list(itertools.product(lambda_u_list, lambda_v_list, confidence_mods, content_mods)))
     if 'cae' or 'cnn_cae' in confidence_mods:
         num_config = (num_config * (len(att_dims) + 1)) / 2
 
@@ -282,12 +296,11 @@ if grid_search:
     if not os.path.exists(fixed_res_dir):
         os.makedirs(fixed_res_dir)
 
-    print "===================================ConvMF Option Setting==================================="
+    print "===================================Options==================================="
     print "\taux path - %s" % aux_path
     print "\tdata path - %s" % data_path
     print "\tresult path - %s" % res_dir
     print "\tpretrained w2v data path - %s" % pretrain_w2v
-
     R, D_all = data_factory.load(aux_path)
     CNN_X = D_all['X_sequence']
     vocab_size = len(D_all['X_vocab']) + 1
@@ -336,6 +349,7 @@ if grid_search:
                 print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod: %s" \
                       % (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
                 print "\tContent: %s" % ('Text and item attributes\n\tAttributes latent vector dim %d' % att_dim)
+                print '\tJoin CNN and CAE outputs method: %s' % ('Transfer block' if use_transfer_block else 'Concatenation')
 
                 c += 1
                 # Read item's attributes
@@ -352,7 +366,7 @@ if grid_search:
                           give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim,
                           num_kernel_per_ws=num_kernel_per_ws,
                           train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
-                          attributes_X=features_matrix, att_dim=att_dim)
+                          attributes_X=features_matrix, att_dim=att_dim,use_transfer_block=use_transfer_block)
 
                 # evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
                 # if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
