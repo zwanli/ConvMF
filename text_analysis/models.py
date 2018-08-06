@@ -112,7 +112,7 @@ class CNN_CAE_module():
         # cae_N_hidden = 50
 
         att_input = Input(shape=(N,), name='cae_input')
-        encoded = Dense(cae_N_hidden, activation='tanh', name='encoded')(att_input)
+        encoded = Dense(cae_N_hidden, activation='sigmoid', name='encoded')(att_input)
         att_output = Dense(N, activation='linear', name='cae_output')(encoded)
 
         # model = Model(input=att_input, output=att_output)
