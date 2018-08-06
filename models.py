@@ -226,8 +226,11 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
             loss, elapsed, converge, tr_eval, val_eval, te_eval)
         f1.write("Loss: %.5f Elpased: %.4fs Converge: %.6f Tr: %.5f Val: %.5f Te: %.5f\n" % (
             loss, elapsed, converge, tr_eval, val_eval, te_eval))
-        if (count == endure_count):
+        if (count >= endure_count and iteration > min_iter):
+        #if (count == endure_count):
             break
+        elif (iteration < min_iter) :
+            count = 0
 
         PREV_LOSS = loss
         iteration += 1
@@ -247,6 +250,7 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
     PREV_LOSS = -1e-50
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
+    os.chdir(res_dir)
     #f1 = open(res_dir + '/state.log', 'w')
     if not os.path.exists(state_log_dir):
         os.makedirs(state_log_dir)
@@ -399,8 +403,11 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
         f1.write("Loss: %.5f Elpased: %.4fs Converge: %.6f Tr: %.5f Val: %.5f Te: %.5f\n" % (
             loss, elapsed, converge, tr_eval, val_eval, te_eval))
 
-        if (count == endure_count):
+        if (count >= endure_count and iteration > min_iter):
+        #if (count == endure_count):
             break
+        elif (iteration < min_iter) :
+            count = 0
 
         PREV_LOSS = loss
         iteration += 1
@@ -421,6 +428,7 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
     PREV_LOSS = -1e-50
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
+    os.chdir(res_dir)
     if not os.path.exists(state_log_dir):
         os.makedirs(state_log_dir)
     f1 = open(state_log_dir + '/state.log', 'w')
@@ -569,8 +577,11 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
         f1.write("Loss: %.5f Elpased: %.4fs Converge: %.6f Tr: %.5f Val: %.5f Te: %.5f\n" % (
             loss, elapsed, converge, tr_eval, val_eval, te_eval))
 
-        if (count == endure_count):
+        if (count >= endure_count and iteration > min_iter):
+        #if (count == endure_count):
             break
+        elif (iteration < min_iter) :
+            count = 0
 
         PREV_LOSS = loss
         iteration += 1
@@ -593,6 +604,7 @@ def MF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
     PREV_LOSS = 1e50
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
+    os.chdir(res_dir)
     if not os.path.exists(state_log_dir):
         os.makedirs(state_log_dir)
     f1 = open(state_log_dir + '/state.log', 'w')
