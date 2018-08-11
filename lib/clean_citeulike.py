@@ -4,14 +4,14 @@ https://www.kaggle.com/fabiendaniel/film-recommendation-engine
 
 '''
 import os
-import csv
-from nltk.tokenize import sent_tokenize
-from nltk.tokenize import word_tokenize
+# import csv
+# from nltk.tokenize import sent_tokenize
+# from nltk.tokenize import word_tokenize
 import argparse
-import datetime
+# import datetime
 import pandas as pd
 import numpy as np
-from sklearn import preprocessing
+# from sklearn import preprocessing
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -93,7 +93,7 @@ def correlation(df):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir', type=str, default='/home/zaher/data/Extended_ctr/convmf',
+    parser.add_argument('--data_dir', type=str, default='/home/wanliz/data/Extended_ctr/convmf',
                         help='data directory containing input.txt')
     parser.add_argument("--dataset", "-d", type=str, default='citeulike-a',
                         help="Which dataset to use", choices=['dummy', 'citeulike-a', 'citeulike-t'])

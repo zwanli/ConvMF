@@ -151,7 +151,7 @@ class CNN_CAE_module():
         model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
 
         self.model = model
-        # plot_model(model, to_file='model.png',show_shapes=True)
+        # plot_model(model, to_file='model_cnn_cae_concat2.png')
 
     def contractive_autoencoder(self, X, lam=1e-3):
         X = X.reshape(X.shape[0], -1)
@@ -276,6 +276,7 @@ class CNN_module():
             #     nb_filters, i, emb_dim, activation="relu"))
             model_internal.add(Conv2D(nb_filters, (i, emb_dim), activation="relu",
                                       name='conv2d_' + str(i), input_shape=(self.max_len, emb_dim, 1)))
+            model_internal.add(BatchNormalization())
             # model_internal.add(MaxPooling2D(
             #     pool_size=(self.max_len - i + 1, 1)))
             model_internal.add(MaxPooling2D(pool_size=(self.max_len - i + 1, 1), name='maxpool2d_' + str(i)))
@@ -286,12 +287,12 @@ class CNN_module():
         '''Fully Connect Layer & Dropout Layer'''
         # self.model.add_node(Dense(vanila_dimension, activation='tanh'),
         #                     name='fully_connect', inputs=['unit_' + str(i) for i in filter_lengths])
-        fully_connect = Dense(vanila_dimension, activation='tanh',
-                              name='fully_connect')(concatenate(flatten_, axis=-1))
-
+        fully_connect = Dense(vanila_dimension,name='fully_connect')(concatenate(flatten_, axis=-1))
+        batch_normalization = BatchNormalization()(fully_connect)
+        activation = Activation('tanh')(batch_normalization)
         # self.model.add_node(Dropout(dropout_rate),
         #                     name='dropout', input='fully_connect')
-        dropout = Dropout(dropout_rate, name='dropout')(fully_connect)
+        dropout = Dropout(dropout_rate, name='dropout')(activation)
         '''Projection Layer & Output Layer'''
         # self.model.add_node(Dense(projection_dimension, activation='tanh'),
         #                     name='projection', input='dropout')
@@ -306,6 +307,8 @@ class CNN_module():
         #write model summary
         model_summary = open('model_summary', 'w')
         self.model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
+        # plot_model(model, to_file='model_cnn.png',show_shapes=True)
+
 
     def load_model(self, model_path):
         self.model.load_weights(model_path)
@@ -511,7 +514,7 @@ class CNN_CAE_transfer_module():
         # cae_N_hidden = 50
 
         att_input = Input(shape=(N,), name='cae_input')
-        encoded = Dense(cae_N_hidden, activation='sigmoid', name='encoded')(att_input)
+        encoded = Dense(cae_N_hidden, activation='tanh', name='encoded')(att_input)
         att_output = Dense(N, activation='linear', name='cae_output')(encoded)
 
         # model = Model(input=att_input, output=att_output)

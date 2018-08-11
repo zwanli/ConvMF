@@ -192,7 +192,7 @@ elif not grid_search:
          else ('Attributes' if content_mode == 'cae' else 'Vanilla matrix factorization')))
     if 'cnn' in content_mode:
         print "\tnum_kernel_per_ws: %d\n\tpretrained w2v data path - %s" % (num_kernel_per_ws, pretrain_w2v)
-    print('\tItem weight %s ' % ('Constant (a=1,b=0,01)' if give_item_weight == False
+    print('\tItem weight %s ' % ('Constant (a=1,b=0,01)' if not give_item_weight
                                else 'Constant (a=1,b=0,01). And f(n)'))
     if 'cnn_cae' in content_mode:
         print '\tJoin CNN and CAE outputs method: %s' % ('Transfer block' if use_transfer_block else 'Concatenation')
