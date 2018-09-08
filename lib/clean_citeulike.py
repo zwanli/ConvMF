@@ -172,7 +172,7 @@ def main():
     ''' Processing Year '''
     # replace NaN with zeros for 'year' and 'pages'
     values = {'year': 0}
-    df = df_initial.fillna(value=values)
+    df = df.fillna(value=values)
     df.year = df.year.astype(int)
 
     ## plot years histogram
