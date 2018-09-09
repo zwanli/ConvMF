@@ -16,9 +16,32 @@ from models import ConvMF
 from models import CAEMF
 from models import MF
 from models import stacking_CNN_CAE
+from models import NN_stacking_CNN_CAE
 from data_manager import Data_Factory
 from rec_eval.lib.evaluator import Evaluator
 from util import Logger
+
+
+def print_helper(content_type):
+    '''
+    A helper funtction that returns a longer description of the content type
+    :param content_type:
+    :return:
+    '''
+    if content_type == 'cnn_cae':
+        return 'Text and attributes'
+    elif content_type == 'cnn':
+        return 'Text'
+    elif content_type == 'cae':
+        return 'Attributes'
+    elif content_type == 'stacking':
+        return 'Stacking ensemble'
+    elif content_type == 'nn_stacking':
+        return 'NN stacking ensebmle'
+    elif content_type == 'mf':
+        return 'Vanilla matrix factorization'
+    else:
+        return 'Content mode parser failed'
 
 parser = argparse.ArgumentParser()
 
@@ -71,7 +94,7 @@ parser.add_argument("-n", "--max_iter", type=int,
                     help="Value of max iteration (default: 200)", default=200)
 parser.add_argument("-w", "--num_kernel_per_ws", type=int,
                     help="Number of kernels per window size for CNN module (default: 100)", default=100)
-parser.add_argument("--content_mode", type=str, choices=['cnn', 'cnn_cae', 'cae', 'mf', 'stacking'],
+parser.add_argument("--content_mode", type=str, choices=['cnn', 'cnn_cae', 'cae', 'mf', 'stacking', 'nn_stacking'],
                     help="Content to be used, CNN: textual content, CAE: auxiliary item features", default='cnn')
 parser.add_argument("--join_mode", type=str, choices=['concat', 'transfer'],
                     help="Approach used to joing the outputs of CNN and CAE (default: transfer)", default='transfer')
@@ -175,7 +198,7 @@ elif not grid_search:
         # Read item's attributes
         labels, features_matrix = data_factory.read_attributes(os.path.join(aux_path + 'paper_attributes.tsv'))
     # ensemble params
-    if content_mode == 'stacking':
+    if content_mode == 'stacking' or content_mode == 'nn_stacking' :
         if args.learning_rate is None:
             sys.exit("Argument missing - learning rate is required")
         lr = args.learning_rate
@@ -192,11 +215,8 @@ elif not grid_search:
     print "\tresult path - %s" % res_dir
     print "\tdimension: %d\n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tmax_iter: %d\n" % (
         dimension, lambda_u, lambda_v, max_iter)
-    print "\tContent: %s" % (
-        'Text and attributes' if content_mode == 'cnn_cae' else
-        ('Text' if content_mode == 'cnn'
-         else ('Attributes' if content_mode == 'cae' else (
-            "Stacking ensemble" if content_mode == 'stacking' else 'Vanilla matrix factorization'))))
+    print "\tContent: %s" % ( print_helper(content_mode))
+
     if 'cnn' in content_mode:
         print "\tnum_kernel_per_ws: %d\n\tpretrained w2v data path - %s" % (num_kernel_per_ws, pretrain_w2v)
     print('\tItem weight %s ' % ('Constant (a=1,b=0,01)' if not give_item_weight
@@ -258,6 +278,14 @@ elif not grid_search:
             CNN_theta = np.loadtxt(os.path.join(data_path, 'fold-{}'.format(f), 'CNN_theta.dat'.format(f)))
             CAE_gamma = np.loadtxt(os.path.join(data_path, 'fold-{}'.format(f), 'CAE_gamma.dat'.format(f)))
             stacking_CNN_CAE(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
+                             lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension,
+                             give_item_weight=give_item_weight, lr=lr, CNN_theta=CNN_theta, CAE_gamma=CAE_gamma,
+                             train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user,
+                             R=R)
+        elif content_mode == 'nn_stacking':
+            CNN_theta = np.loadtxt(os.path.join(data_path, 'fold-{}'.format(f), 'CNN_theta.dat'.format(f)))
+            CAE_gamma = np.loadtxt(os.path.join(data_path, 'fold-{}'.format(f), 'CAE_gamma.dat'.format(f)))
+            NN_stacking_CNN_CAE(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
                              lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension,
                              give_item_weight=give_item_weight, lr=lr, CNN_theta=CNN_theta, CAE_gamma=CAE_gamma,
                              train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user,
