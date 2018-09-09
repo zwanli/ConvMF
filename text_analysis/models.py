@@ -652,9 +652,9 @@ class Stacking_NN_CNN_CAE():
         # theta_gamma_input = Input(shape=(input_dim,), dtype='float32', name='theta_gamma')
 
         model = Sequential()
-        model.add(Dense(600, activation='relu', input_dim=input_dim))
+        model.add(Dense(300, activation='relu', input_dim=input_dim))
         model.add(Dropout(0.15))
-        model.add(Dense(500, activation='relu'))
+        model.add(Dense(300, activation='relu'))
         model.add(Dropout(0.15))
         model.add(Dense(output_dimesion, activation='tanh', name='output_layer'))
         model.compile(optimizer='rmsprop', loss='mse')
@@ -681,7 +681,7 @@ class Stacking_NN_CNN_CAE():
         item_weight = np.random.permutation(item_weight)
 
         print("Train...stacking module")
-        history = self.model.fit(X_train, V, verbose=2, batch_size=self.batch_size, epochs=self.nb_epoch,
+        history = self.model.fit(X_train, V, verbose=0, batch_size=self.batch_size, epochs=self.nb_epoch,
                                  sample_weight=item_weight, callbacks=callbacks_list)
 
         return history

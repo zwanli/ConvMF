@@ -94,7 +94,7 @@ parser.add_argument("-n", "--max_iter", type=int,
                     help="Value of max iteration (default: 200)", default=200)
 parser.add_argument("-w", "--num_kernel_per_ws", type=int,
                     help="Number of kernels per window size for CNN module (default: 100)", default=100)
-parser.add_argument("--content_mode", type=str, choices=['cnn', 'cnn_cae', 'cae', 'mf', 'stacking', 'nn_stacking'],
+parser.add_argument("--content_mode", type=str, choices=['cnn', 'cnn_cae', 'cae', 'mf', 'stacking', 'nn_stacking','maria'],
                     help="Content to be used, CNN: textual content, CAE: auxiliary item features", default='cnn')
 parser.add_argument("--join_mode", type=str, choices=['concat', 'transfer'],
                     help="Approach used to joing the outputs of CNN and CAE (default: transfer)", default='transfer')
@@ -193,12 +193,12 @@ elif not grid_search:
                 pretrain_w2v, D_all['X_vocab'], emb_dim)
 
     # CAE params
-    if 'cae' in content_mode:
+    if 'cae' in content_mode or content_mode =='maria':
         att_dim = args.att_dim
         # Read item's attributes
         labels, features_matrix = data_factory.read_attributes(os.path.join(aux_path + 'paper_attributes.tsv'))
     # ensemble params
-    if content_mode == 'stacking' or content_mode == 'nn_stacking' :
+    if content_mode in ['stacking','nn_stacking','maria']:
         if args.learning_rate is None:
             sys.exit("Argument missing - learning rate is required")
         lr = args.learning_rate
@@ -290,6 +290,15 @@ elif not grid_search:
                              give_item_weight=give_item_weight, lr=lr, CNN_theta=CNN_theta, CAE_gamma=CAE_gamma,
                              train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user,
                              R=R)
+        elif content_mode == 'maria':
+            CNN_theta = np.loadtxt(os.path.join(data_path, 'fold-{}'.format(f), 'CNN_theta.dat'.format(f)))
+            CAE_gamma = features_matrix
+            NN_stacking_CNN_CAE(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
+                                lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension,
+                                give_item_weight=give_item_weight, lr=lr, CNN_theta=CNN_theta, CAE_gamma=CAE_gamma,
+                                train_user=train_user, train_item=train_item, valid_user=valid_user,
+                                test_user=test_user,
+                                R=R)
 
 if grid_search:
 

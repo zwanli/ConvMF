@@ -977,7 +977,10 @@ def NN_stacking_CNN_CAE(res_dir,state_log_dir, train_user, train_item, valid_use
     phi = stacking_module.get_projection_layer(theta_gamma_train)
     np.random.seed(133)
     U = np.random.uniform(size=(num_user, dimension))
-    V = (CNN_theta +CAE_gamma) / 2
+    if (theta_gamma_train.shape == dimension*2):
+        V = (CNN_theta +CAE_gamma) / 2
+    else:
+        V = CNN_theta
 
     print ('Training CNN-MF ...')
 
