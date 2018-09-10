@@ -17,6 +17,7 @@ from models import CAEMF
 from models import MF
 from models import stacking_CNN_CAE
 from models import NN_stacking_CNN_CAE
+from models import Raw_att_CNN_concat
 from data_manager import Data_Factory
 from rec_eval.lib.evaluator import Evaluator
 from util import Logger
@@ -40,6 +41,8 @@ def print_helper(content_type):
         return 'NN stacking ensebmle'
     elif content_type == 'mf':
         return 'Vanilla matrix factorization'
+    elif content_type =='raw_att_cnn':
+        return 'FC( Raw attributes), and CNN trained separately '
     else:
         return 'Content mode parser failed'
 
@@ -94,7 +97,8 @@ parser.add_argument("-n", "--max_iter", type=int,
                     help="Value of max iteration (default: 200)", default=200)
 parser.add_argument("-w", "--num_kernel_per_ws", type=int,
                     help="Number of kernels per window size for CNN module (default: 100)", default=100)
-parser.add_argument("--content_mode", type=str, choices=['cnn', 'cnn_cae', 'cae', 'mf', 'stacking', 'nn_stacking','maria'],
+parser.add_argument("--content_mode", type=str,
+                    choices=['cnn', 'cnn_cae', 'cae', 'mf', 'stacking', 'nn_stacking','maria','raw_att_cnn'],
                     help="Content to be used, CNN: textual content, CAE: auxiliary item features", default='cnn')
 parser.add_argument("--join_mode", type=str, choices=['concat', 'transfer'],
                     help="Approach used to joing the outputs of CNN and CAE (default: transfer)", default='transfer')
@@ -193,12 +197,12 @@ elif not grid_search:
                 pretrain_w2v, D_all['X_vocab'], emb_dim)
 
     # CAE params
-    if 'cae' in content_mode or content_mode =='maria':
+    if 'cae' in content_mode or content_mode in ['maria','raw_att_cnn']:
         att_dim = args.att_dim
         # Read item's attributes
         labels, features_matrix = data_factory.read_attributes(os.path.join(aux_path + 'paper_attributes.tsv'))
     # ensemble params
-    if content_mode in ['stacking','nn_stacking','maria']:
+    if content_mode in ['stacking','nn_stacking','maria','raw_att_cnn']:
         if args.learning_rate is None:
             sys.exit("Argument missing - learning rate is required")
         lr = args.learning_rate
@@ -299,6 +303,13 @@ elif not grid_search:
                                 train_user=train_user, train_item=train_item, valid_user=valid_user,
                                 test_user=test_user,
                                 R=R)
+        elif content_mode == 'raw_att_cnn':
+            Raw_att_CNN_concat(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
+                      lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
+                      give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim,
+                      num_kernel_per_ws=num_kernel_per_ws,
+                      train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
+                      attributes_X=features_matrix, use_CAE=False)
 
 if grid_search:
 

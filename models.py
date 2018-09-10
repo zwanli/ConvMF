@@ -5,6 +5,7 @@ Created on Dec 8, 2015
 '''
 
 import os
+import sys
 import time
 import copy
 from util import eval_RMSE
@@ -55,7 +56,7 @@ def map_theta_to_V(theta,id_to_original_map, m,k ):
 
 
 def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
-              R, attributes_X, CNN_X, vocab_size, init_W,att_dim,
+              R, attributes_X, CNN_X, vocab_size, init_W,cae_output_dim,
               max_iter, lambda_u, lambda_v, dimension,
               dropout_rate=0.2, emb_dim=200, max_len=300, num_kernel_per_ws=100,
               a=1, b=0.01,  give_item_weight=False, use_transfer_block =True):
@@ -110,11 +111,11 @@ def ConvCAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_us
     '''initialize'''
     if use_transfer_block:
         cnn_cae_module = CNN_CAE_transfer_module(dimension, vocab_size, dropout_rate,
-                                    emb_dim, max_len, num_kernel_per_ws, init_W, cae_N_hidden=att_dim,
+                                    emb_dim, max_len, num_kernel_per_ws, init_W, cae_N_hidden=cae_output_dim,
                                     nb_features=num_features)
     else:
         cnn_cae_module = CNN_CAE_module(dimension, vocab_size, dropout_rate,
-                                    emb_dim, max_len, num_kernel_per_ws, init_W,cae_N_hidden=att_dim,
+                                    emb_dim, max_len, num_kernel_per_ws, init_W,cae_N_hidden=cae_output_dim,
                                         nb_features=num_features)
     theta = cnn_cae_module.get_projection_layer(CNN_X, attributes_X)
     np.random.seed(133)
@@ -418,7 +419,7 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
 def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
               R, attributes_X, give_item_weight=False,
               max_iter=50, lambda_u=1, lambda_v=100, dimension=200,
-              a=1, b=0.01, att_dim=50):
+              a=1, b=0.01, cae_output_dim=50):
     # explicit setting
     # a = 1
     # b = 0.01
@@ -465,7 +466,7 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
     pre_val_eval = 1e10
 
-    cae_module = CAE_module(dimension,cae_N_hidden=att_dim, nb_features=num_features)
+    cae_module = CAE_module(dimension,cae_N_hidden=cae_output_dim, nb_features=num_features)
     theta = cae_module.get_projection_layer(attributes_X)
     np.random.seed(133)
     U = np.random.uniform(size=(num_user, dimension))
@@ -522,7 +523,7 @@ def CAEMF(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
 
         loss = loss + np.sum(sub_loss)
         seed = np.random.randint(100000)
-        history = cae_module.train(V, item_weight, seed, att_train=attributes_X,callbacks_list=callbacks_list)
+        history = cae_module.train(att_train=attributes_X, V=V, item_weight=item_weight, seed=seed, callbacks_list=callbacks_list)
         theta = cae_module.get_projection_layer(attributes_X)
         cae_loss = history.history['loss'][-1]
 
@@ -1091,6 +1092,205 @@ def NN_stacking_CNN_CAE(res_dir,state_log_dir, train_user, train_item, valid_use
         f1.write("Loss: %.5f Elpased: %.4fs Converge: %.6f Tr: %.5f Val: %.5f Te: %.5f\n" % (
             loss, elapsed, converge, tr_eval, val_eval, te_eval))
 
+        if (count >= endure_count and iteration > min_iter):
+        #if (count == endure_count):
+            break
+        elif (iteration < min_iter) :
+            count = 0
+
+        PREV_LOSS = loss
+        iteration += 1
+    f1.close()
+    return best_train_rmse, best_test_rmse, best_val_rmse
+
+def Raw_att_CNN_concat(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
+              R, attributes_X, CNN_X, vocab_size, init_W, max_iter, lambda_u, lambda_v, dimension,
+              dropout_rate=0.2, emb_dim=200, max_len=300, num_kernel_per_ws=100,
+              a=1, b=0.01,  give_item_weight=False, use_CAE =False):
+    # explicit setting
+    # a = 1
+    # b = 0.01
+
+    num_user = R.shape[0]
+    num_item = R.shape[1]
+
+    num_features = attributes_X.shape[1]
+
+    '''prepare path to store results and log'''
+    if not os.path.exists(res_dir):
+        os.makedirs(res_dir)
+    os.chdir(res_dir)
+    if not os.path.exists(state_log_dir):
+        os.makedirs(state_log_dir)
+    f1 = open(state_log_dir + '/state.log', 'w')
+
+    '''log metrics using tf.summary '''
+    log_dir_name = os.path.basename(os.path.dirname(state_log_dir+'/'))
+    log_dir = os.path.join(state_log_dir,log_dir_name)
+    logger_tb = Tb_Logger(log_dir)
+    # indicate folder to save, plus other options
+    tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=0,
+                              write_graph=False, write_images=False)
+    # save it in your callback list, where you can include other callbacks
+    callbacks_list = [tensorboard]
+    # then pass to fit as callback, remember to use validation_data also
+
+    Train_R_I = train_user[1]
+    Train_R_J = train_item[1]
+    Test_R = test_user[1]
+
+    # check if the dataset has validation set
+    no_validation = False
+    if valid_user:
+        Valid_R = valid_user[1]
+    else:
+        no_validation = True
+
+    #assign weights to each item according to the number of time the item was rated
+    if give_item_weight is True:
+        item_weight = np.array([math.sqrt(len(i))
+                                for i in Train_R_J], dtype=float)
+        item_weight = (float(num_item) / item_weight.sum()) * item_weight
+        item_weight[item_weight == 0] = 1
+    else:
+        item_weight = np.ones(num_item, dtype=float)
+
+    '''initialize'''
+    cnn_output_dim = 150
+    att_output_dim = dimension - cnn_output_dim
+    cnn_module = CNN_module(dimension, vocab_size, dropout_rate,
+                            emb_dim, max_len, num_kernel_per_ws, init_W)
+    if use_CAE:
+        att_module = CAE_module(dimension, cae_N_hidden=att_output_dim, nb_features=num_features)
+
+
+
+    else:
+        att_module = Stacking_NN_CNN_CAE(att_output_dim,input_dim=num_features,hidden_dim=num_features*2)
+
+    theta = cnn_module.get_projection_layer(CNN_X)
+    gamma = att_module.get_projection_layer(attributes_X)
+    delta = np.concatenate((gamma,theta),axis=1)
+    if not (theta.shape[1]+gamma.shape[1] == dimension):
+        sys.exit("theta and gamma shapes are wrong")
+    np.random.seed(133)
+    U = np.random.uniform(size=(num_user, dimension))
+    V = delta
+
+    print ('Training CNN-CAE-MF ...')
+    pre_val_eval = -1e10
+    PREV_LOSS = -1e-50
+    endure_count = 5
+    count = 0
+    converge_threshold = 1e-4
+    converge = 1.0
+    iteration = 0
+    while (iteration < max_iter and converge > converge_threshold) or iteration < min_iter:
+        # for iteration in xrange(max_iter):
+        loss = 0
+        tic = time.time()
+        print "%d iteration\t(patience: %d)" % (iteration, count)
+
+        # Update U
+        VV = b * (V.T.dot(V)) + lambda_u * np.eye(dimension)
+        sub_loss = np.zeros(num_user)
+
+        for i in xrange(num_user):
+            idx_item = train_user[0][i]
+            V_i = V[idx_item]
+            R_i = Train_R_I[i]
+            A = VV + (a - b) * (V_i.T.dot(V_i))
+            B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
+
+            U[i] = np.linalg.solve(A, B)
+
+            sub_loss[i] = -0.5 * lambda_u * np.dot(U[i], U[i])
+
+        loss = loss + np.sum(sub_loss)
+
+        # Update V
+        sub_loss = np.zeros(num_item)
+        UU = b * (U.T.dot(U))
+        for j in xrange(num_item):
+            idx_user = train_item[0][j]
+            U_j = U[idx_user]
+            R_j = Train_R_J[j]
+
+            if len(U_j) > 0:
+                tmp_A = UU + (a - b) * (U_j.T.dot(U_j))
+                A = tmp_A + lambda_v * item_weight[j] * np.eye(dimension)
+                B = (a * U_j * (np.tile(R_j, (dimension, 1)).T)
+                     ).sum(0) + lambda_v * item_weight[j] * delta[j]
+                V[j] = np.linalg.solve(A, B)
+
+                sub_loss[j] = -0.5 * np.square(R_j * a).sum()
+                sub_loss[j] = sub_loss[j] + a * np.sum((U_j.dot(V[j])) * R_j)
+                sub_loss[j] = sub_loss[j] - 0.5 * np.dot(V[j].dot(tmp_A), V[j])
+            else:
+                #in case the item has no ratings
+                V[j] = theta[j]
+        loss = loss + np.sum(sub_loss)
+
+        # Update theta
+        seed = np.random.randint(100000)
+        history = cnn_module.train(CNN_X, V[:,50:], item_weight=item_weight,
+                                       seed=seed,callbacks_list=callbacks_list)
+        theta = cnn_module.get_projection_layer(CNN_X)
+        cnn_loss = history.history['loss'][-1]
+
+        # update gamma
+        history = att_module.train(attributes_X, V[:,:50], item_weight, seed,callbacks_list)
+        gamma = att_module.get_projection_layer(attributes_X)
+        att_loss = history.history['loss'][-1]
+
+        loss = loss - 0.5 * lambda_v * (cnn_loss+att_loss) * num_item
+
+        toc = time.time()
+        elapsed = toc - tic
+
+        '''calculate RMSE'''
+        tr_eval = eval_RMSE(Train_R_I, U, V, train_user[0])
+        if not no_validation:
+            val_eval = eval_RMSE(Valid_R, U, V, valid_user[0])
+        else:
+            val_eval = -1
+        te_eval = eval_RMSE(Test_R, U, V, test_user[0])
+
+        ''' write tf.summary'''
+        logger_tb.log_scalar('train_rmse',tr_eval,iteration)
+        if not no_validation:
+            logger_tb.log_scalar('eval_rmse',val_eval,iteration)
+        logger_tb.log_scalar('test_rmse',te_eval,iteration)
+        logger_tb.writer.flush()
+
+
+        '''Calculate converge and stor best values of U,V,theta'''
+        converge = abs((loss - PREV_LOSS) / PREV_LOSS)
+
+        # if (val_eval < pre_val_eval):
+        if (loss > PREV_LOSS):
+            #count = 0
+            print ("likelihood is increasing!")
+            cnn_module.save_model(res_dir + '/CNN_weights.hdf5')
+            cnn_module.save_model(res_dir + '/Att_weights.hdf5')
+            np.savetxt(res_dir + '/final-U.dat', U)
+            np.savetxt(res_dir + '/final-V.dat', V)
+            np.savetxt(res_dir + '/theta.dat', theta)
+            np.savetxt(res_dir + '/gamma.dat', gamma)
+
+            best_train_rmse = tr_eval
+            best_test_rmse = te_eval
+            best_val_rmse = val_eval
+
+        else:
+            count = count + 1
+
+        pre_val_eval = val_eval
+
+        print "Loss: %.5f Elpased: %.4fs Converge: %.6f Tr: %.5f Val: %.5f Te: %.5f" % (
+            loss, elapsed, converge, tr_eval, val_eval, te_eval)
+        f1.write("Loss: %.5f Elpased: %.4fs Converge: %.6f Tr: %.5f Val: %.5f Te: %.5f\n" % (
+            loss, elapsed, converge, tr_eval, val_eval, te_eval))
         if (count >= endure_count and iteration > min_iter):
         #if (count == endure_count):
             break

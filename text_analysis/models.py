@@ -428,7 +428,7 @@ class CAE_module():
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
 
-    def train(self, V, item_weight, seed, att_train, callbacks_list):
+    def train(self,att_train, V, item_weight, seed,  callbacks_list):
         np.random.seed(seed)
         V = np.random.permutation(V)
 
@@ -642,7 +642,7 @@ class Stacking_NN_CNN_CAE():
     nb_epoch = 15
     batch_size = batch_size
 
-    def __init__(self, output_dimesion, input_dim, dropout_rate):
+    def __init__(self, output_dimesion, input_dim, dropout_rate=0.15,hidden_dim=300):
         ''' CNN Module'''
         model_summary = open('model_summary', 'w')
         vanila_dimension = 200
@@ -652,10 +652,10 @@ class Stacking_NN_CNN_CAE():
         # theta_gamma_input = Input(shape=(input_dim,), dtype='float32', name='theta_gamma')
 
         model = Sequential()
-        model.add(Dense(300, activation='relu', input_dim=input_dim))
-        model.add(Dropout(0.15))
-        model.add(Dense(300, activation='relu'))
-        model.add(Dropout(0.15))
+        model.add(Dense(hidden_dim, activation='relu', input_dim=input_dim))
+        model.add(Dropout(dropout_rate))
+        model.add(Dense(hidden_dim, activation='relu'))
+        model.add(Dropout(dropout_rate))
         model.add(Dense(output_dimesion, activation='tanh', name='output_layer'))
         model.compile(optimizer='rmsprop', loss='mse')
         # plot_model(model, to_file='model.png')
