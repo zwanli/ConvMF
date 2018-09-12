@@ -34,6 +34,32 @@ def make_CDL_format(X_base, path):
     X_nor = X_base / max_X_rep
     np.savetxt(path + '/mult_nor.dat', X_nor, fmt='%.5f')
 
+
+def get_confidence_matrix(ratings, mode, **kwargs):
+    '''
+    :param mode: { 'constant','user-dependant' }
+    :return:
+    '''
+    confidence_matrix = np.zeros((ratings.shape))
+    if mode == 'constant':
+        if 'alpha' in kwargs and 'beta' in kwargs:
+            confidence_matrix[ratings == 1] = kwargs['alpha']
+            confidence_matrix[ratings != 1] = kwargs['beta']
+        else:
+            raise Exception('alpha and beta values are required, where alpha >> beta ')
+    elif mode == 'user-dependant':
+        if 'alpha' in kwargs:
+            alpha = kwargs['alpha']
+        else:
+            alpha = 40
+            print('alpha value is not provided, using default value %d ' % alpha)
+        count_nonzero = np.count_nonzero(ratings, axis=1)
+        confidence_matrix = confidence_matrix.T + (1 + alpha * count_nonzero)
+        confidence_matrix = confidence_matrix.T
+    else:
+        print('Using default confidence mode, constant  ')
+    return confidence_matrix
+
 import sys
 
 class Logger(object):

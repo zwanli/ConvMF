@@ -52,7 +52,7 @@ class CNN_CAE_module():
                  init_W=None, cae_N_hidden=50, nb_features=17):
 
         ''' CNN Module'''
-        model_summary = open('model_summary', 'w')
+        model_summary = open('cnn_cae_model_summary', 'w')
 
         self.max_len = max_len
         max_features = vocab_size
@@ -304,7 +304,7 @@ class CNN_module():
         self.model = model
 
         # write model summary
-        model_summary = open('model_summary', 'w')
+        model_summary = open('cnn_model_summary', 'w')
         self.model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
         # plot_model(model, to_file='model_cnn.png',show_shapes=True)
 
@@ -389,7 +389,7 @@ class CAE_module():
         # plot_model(model, to_file='model.png')
 
         self.model = model
-        model_summary = open('model_summary', 'w')
+        model_summary = open('cae_model_summary', 'w')
         self.model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
         # plot_model(model, to_file='model_cae.png',show_shapes=True)
 
@@ -463,7 +463,7 @@ class CNN_CAE_transfer_module():
                  init_W=None, cae_N_hidden=50, nb_features=17):
 
         ''' CNN Module'''
-        model_summary = open('model_summary', 'w')
+        model_summary = open('cnn_cae_transfer_model_summary', 'w')
         self.max_len = max_len
         max_features = vocab_size
         vanila_dimension = 200
@@ -644,7 +644,7 @@ class Stacking_NN_CNN_CAE():
 
     def __init__(self, output_dimesion, input_dim, dropout_rate=0.15,hidden_dim=300):
         ''' CNN Module'''
-        model_summary = open('model_summary', 'w')
+        model_summary = open('nn_model_summary', 'w')
         vanila_dimension = 200
         projection_dimension = output_dimesion
 

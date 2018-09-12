@@ -17,6 +17,7 @@ from text_analysis.models import CAE_module, CNN_CAE_transfer_module
 from text_analysis.models import Stacking_NN_CNN_CAE
 from lib.tensorboard_logging import Tb_Logger
 from keras.callbacks import TensorBoard
+from util import get_confidence_matrix
 import datetime
 
 
@@ -1104,13 +1105,14 @@ def NN_stacking_CNN_CAE(res_dir,state_log_dir, train_user, train_item, valid_use
     return best_train_rmse, best_test_rmse, best_val_rmse
 
 def Raw_att_CNN_concat(res_dir,state_log_dir, train_user, train_item, valid_user, test_user,
-              R, attributes_X, CNN_X, vocab_size, init_W, max_iter, lambda_u, lambda_v, dimension,
+              R, attributes_X, CNN_X, vocab_size, init_W, max_iter, lambda_u, lambda_v, dimension, use_CAE,
               dropout_rate=0.2, emb_dim=200, max_len=300, num_kernel_per_ws=100,
-              a=1, b=0.01,  give_item_weight=False, use_CAE =False):
+              a=1, b=0.01,  give_item_weight=False):
     # explicit setting
     # a = 1
     # b = 0.01
-
+    alpha = 40
+    # confidence_matrix = get_confidence_matrix(R,'user-dependant',alpha=40)
     num_user = R.shape[0]
     num_item = R.shape[1]
 
@@ -1156,14 +1158,12 @@ def Raw_att_CNN_concat(res_dir,state_log_dir, train_user, train_item, valid_user
         item_weight = np.ones(num_item, dtype=float)
 
     '''initialize'''
-    cnn_output_dim = 150
+    cnn_output_dim = 15
     att_output_dim = dimension - cnn_output_dim
-    cnn_module = CNN_module(dimension, vocab_size, dropout_rate,
+    cnn_module = CNN_module(cnn_output_dim, vocab_size, dropout_rate,
                             emb_dim, max_len, num_kernel_per_ws, init_W)
     if use_CAE:
-        att_module = CAE_module(dimension, cae_N_hidden=att_output_dim, nb_features=num_features)
-
-
+        att_module = CAE_module(att_output_dim, cae_N_hidden=att_output_dim, nb_features=num_features)
 
     else:
         att_module = Stacking_NN_CNN_CAE(att_output_dim,input_dim=num_features,hidden_dim=num_features*2)
@@ -1192,16 +1192,19 @@ def Raw_att_CNN_concat(res_dir,state_log_dir, train_user, train_item, valid_user
         print "%d iteration\t(patience: %d)" % (iteration, count)
 
         # Update U
-        VV = b * (V.T.dot(V)) + lambda_u * np.eye(dimension)
+        #VV = b * (V.T.dot(V)) + lambda_u * np.eye(dimension)
+        VV = (V.T.dot(V)) + lambda_u * np.eye(dimension)
         sub_loss = np.zeros(num_user)
 
         for i in xrange(num_user):
             idx_item = train_user[0][i]
             V_i = V[idx_item]
             R_i = Train_R_I[i]
-            A = VV + (a - b) * (V_i.T.dot(V_i))
-            B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
-
+            C_i = np.diag(alpha * R_i)
+            #A = VV + (a - b) * (V_i.T.dot(V_i))
+            #B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
+            A = VV + V_i.T.dot(C_i).dot(V_i)
+            B = V_i.T.dot(C_i+np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
             sub_loss[i] = -0.5 * lambda_u * np.dot(U[i], U[i])
@@ -1210,17 +1213,21 @@ def Raw_att_CNN_concat(res_dir,state_log_dir, train_user, train_item, valid_user
 
         # Update V
         sub_loss = np.zeros(num_item)
-        UU = b * (U.T.dot(U))
+        # UU = b * (U.T.dot(U))
+        UU = (U.T.dot(U))
+
         for j in xrange(num_item):
             idx_user = train_item[0][j]
             U_j = U[idx_user]
             R_j = Train_R_J[j]
-
+            C_j = np.diag(alpha * R_j)
             if len(U_j) > 0:
-                tmp_A = UU + (a - b) * (U_j.T.dot(U_j))
+                #tmp_A = UU + (a - b) * (U_j.T.dot(U_j))
+                tmp_A = UU + (U_j.T.dot(C_j).dot(U_j))
                 A = tmp_A + lambda_v * item_weight[j] * np.eye(dimension)
-                B = (a * U_j * (np.tile(R_j, (dimension, 1)).T)
-                     ).sum(0) + lambda_v * item_weight[j] * delta[j]
+                # B = (a * U_j * (np.tile(R_j, (dimension, 1)).T)
+                #      ).sum(0) + lambda_v * item_weight[j] * delta[j]
+                B = U_j.T.dot(C_j+np.eye(len(idx_user))).dot(R_j) + lambda_v * item_weight[j] * delta[j]
                 V[j] = np.linalg.solve(A, B)
 
                 sub_loss[j] = -0.5 * np.square(R_j * a).sum()
@@ -1228,21 +1235,22 @@ def Raw_att_CNN_concat(res_dir,state_log_dir, train_user, train_item, valid_user
                 sub_loss[j] = sub_loss[j] - 0.5 * np.dot(V[j].dot(tmp_A), V[j])
             else:
                 #in case the item has no ratings
-                V[j] = theta[j]
+                V[j] = delta[j]
         loss = loss + np.sum(sub_loss)
 
         # Update theta
         seed = np.random.randint(100000)
-        history = cnn_module.train(CNN_X, V[:,50:], item_weight=item_weight,
+        history = cnn_module.train(CNN_X, V[:,att_output_dim:], item_weight=item_weight,
                                        seed=seed,callbacks_list=callbacks_list)
         theta = cnn_module.get_projection_layer(CNN_X)
         cnn_loss = history.history['loss'][-1]
 
         # update gamma
-        history = att_module.train(attributes_X, V[:,:50], item_weight, seed,callbacks_list)
+        history = att_module.train(attributes_X, V[:,:att_output_dim], item_weight, seed,callbacks_list)
         gamma = att_module.get_projection_layer(attributes_X)
         att_loss = history.history['loss'][-1]
-
+        # update delta
+        delta = np.concatenate((gamma, theta), axis=1)
         loss = loss - 0.5 * lambda_v * (cnn_loss+att_loss) * num_item
 
         toc = time.time()
