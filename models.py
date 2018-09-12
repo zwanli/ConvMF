@@ -247,7 +247,7 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
     # explicit settinggit
     a = 1
     b = 0.01
-
+    alpha = 40
     num_user = R.shape[0]
     num_item = R.shape[1]
     PREV_LOSS = -1e-50
@@ -310,16 +310,19 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
         tic = time.time()
         print "%d iteration\t(patience: %d)" % (iteration, count)
 
-        VV = b * (V.T.dot(V)) + lambda_u * np.eye(dimension)
+        #VV = b * (V.T.dot(V)) + lambda_u * np.eye(dimension)
+        VV = (V.T.dot(V)) + lambda_u * np.eye(dimension)
         sub_loss = np.zeros(num_user)
 
         for i in xrange(num_user):
             idx_item = train_user[0][i]
             V_i = V[idx_item]
             R_i = Train_R_I[i]
-            A = VV + (a - b) * (V_i.T.dot(V_i))
-            B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
-
+            #A = VV + (a - b) * (V_i.T.dot(V_i))
+            #B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
+            C_i = np.diag(alpha * R_i)
+            A = VV + V_i.T.dot(C_i).dot(V_i)
+            B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
             sub_loss[i] = -0.5 * lambda_u * np.dot(U[i], U[i])
@@ -327,21 +330,26 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
         loss = loss + np.sum(sub_loss)
 
         sub_loss = np.zeros(num_item)
-        UU = b * (U.T.dot(U))
+        #UU = b * (U.T.dot(U))
+        UU = (U.T.dot(U))
         for j in xrange(num_item):
             idx_user = train_item[0][j]
             U_j = U[idx_user]
             R_j = Train_R_J[j]
-
+            C_j = np.diag(alpha * R_j)
             if len(U_j) > 0:
-                tmp_A = UU + (a - b) * (U_j.T.dot(U_j))
+                # tmp_A = UU + (a - b) * (U_j.T.dot(U_j))
+                tmp_A = UU + (U_j.T.dot(C_j).dot(U_j))
                 A = tmp_A + lambda_v * item_weight[j] * np.eye(dimension)
-                B = (a * U_j * (np.tile(R_j, (dimension, 1)).T)
-                     ).sum(0) + lambda_v * item_weight[j] * theta[j]
+                B = U_j.T.dot(C_j + np.eye(len(idx_user))).dot(R_j) + lambda_v * item_weight[j] * theta[j]
+                # B = (a * U_j * (np.tile(R_j, (dimension, 1)).T)
+                #      ).sum(0) + lambda_v * item_weight[j] * theta[j]
                 V[j] = np.linalg.solve(A, B)
 
-                sub_loss[j] = -0.5 * np.square(R_j * a).sum()
-                sub_loss[j] = sub_loss[j] + a * np.sum((U_j.dot(V[j])) * R_j)
+                # sub_loss[j] = -0.5 * np.square(R_j * a).sum()
+                # sub_loss[j] = sub_loss[j] + a * np.sum((U_j.dot(V[j])) * R_j)
+                sub_loss[j] = -0.5 * np.square(R_j * C_j).sum()
+                sub_loss[j] = sub_loss[j] + np.sum(C_j * (U_j.dot(V[j])) * R_j)
                 sub_loss[j] = sub_loss[j] - 0.5 * np.dot(V[j].dot(tmp_A), V[j])
             else:
                 V[j] = theta[j]
@@ -1158,7 +1166,7 @@ def Raw_att_CNN_concat(res_dir,state_log_dir, train_user, train_item, valid_user
         item_weight = np.ones(num_item, dtype=float)
 
     '''initialize'''
-    cnn_output_dim = 15
+    cnn_output_dim = 150
     att_output_dim = dimension - cnn_output_dim
     cnn_module = CNN_module(cnn_output_dim, vocab_size, dropout_rate,
                             emb_dim, max_len, num_kernel_per_ws, init_W)
@@ -1230,8 +1238,8 @@ def Raw_att_CNN_concat(res_dir,state_log_dir, train_user, train_item, valid_user
                 B = U_j.T.dot(C_j+np.eye(len(idx_user))).dot(R_j) + lambda_v * item_weight[j] * delta[j]
                 V[j] = np.linalg.solve(A, B)
 
-                sub_loss[j] = -0.5 * np.square(R_j * a).sum()
-                sub_loss[j] = sub_loss[j] + a * np.sum((U_j.dot(V[j])) * R_j)
+                sub_loss[j] = -0.5 * np.square(R_j * C_j).sum()
+                sub_loss[j] = sub_loss[j] + np.sum(C_j * ((U_j.dot(V[j])) * R_j))
                 sub_loss[j] = sub_loss[j] - 0.5 * np.dot(V[j].dot(tmp_A), V[j])
             else:
                 #in case the item has no ratings
