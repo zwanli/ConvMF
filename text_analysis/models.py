@@ -322,7 +322,6 @@ class CNN_module():
         V = np.random.permutation(V)
         np.random.seed(seed)
         item_weight = np.random.permutation(item_weight)
-
         print("Train...CNN module")
         history = self.model.fit(X_train, V,
                                  verbose=0, batch_size=self.batch_size, epochs=self.nb_epoch,
@@ -642,20 +641,17 @@ class Stacking_NN_CNN_CAE():
     nb_epoch = 15
     batch_size = batch_size
 
-    def __init__(self, output_dimesion, input_dim, dropout_rate=0.15,hidden_dim=300):
+    def __init__(self, input_dim,output_dimesion ,num_layers,hidden_dim, dropout_rate=0.15):
         ''' CNN Module'''
         model_summary = open('nn_model_summary', 'w')
-        vanila_dimension = 200
-        projection_dimension = output_dimesion
 
         # input
-        # theta_gamma_input = Input(shape=(input_dim,), dtype='float32', name='theta_gamma')
-
         model = Sequential()
         model.add(Dense(hidden_dim, activation='relu', input_dim=input_dim))
         model.add(Dropout(dropout_rate))
-        model.add(Dense(hidden_dim, activation='relu'))
-        model.add(Dropout(dropout_rate))
+        for i in range(1,num_layers):
+            model.add(Dense(hidden_dim, activation='relu'))
+            model.add(Dropout(dropout_rate))
         model.add(Dense(output_dimesion, activation='tanh', name='output_layer'))
         model.compile(optimizer='rmsprop', loss='mse')
         # plot_model(model, to_file='model.png')

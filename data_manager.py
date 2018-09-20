@@ -553,8 +553,10 @@ class Data_Factory():
         print "\tFiltering words by TF-IDF score with max_df: %.1f, vocab_size: %d" % (_max_df, _vocab_size)
 
         # Make vocabulary by document
-        vectorizer = TfidfVectorizer(max_df=_max_df, stop_words={
-            'english'}, max_features=_vocab_size)
+        # vectorizer = TfidfVectorizer(max_df=_max_df, stop_words={
+        #     'english'}, max_features=_vocab_size)
+        # Make vocabulary by document
+        vectorizer = TfidfVectorizer(max_df=_max_df, max_features=_vocab_size)
         Raw_X = [map_idtoplot[i] for i in range(R.shape[1])]
         vectorizer.fit(Raw_X)
         vocab = vectorizer.vocabulary_

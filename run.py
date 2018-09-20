@@ -60,8 +60,8 @@ parser.add_argument("-m", "--min_rating", type=int,
 parser.add_argument("-l", "--max_length_document", type=int,
                     help="Maximum length of document of each item (default = 300)", default=300)
 parser.add_argument("--max_df", type=float,
-                    help="Threshold to ignore terms that have a document frequency higher than the given value (default = 0.5)",
-                    default=0.5)
+                    help="Threshold to ignore terms that have a document frequency higher than the given value (default = 1.0)",
+                    default=1.0)
 parser.add_argument("-s", "--vocab_size", type=int,
                     help="Size of vocabulary (default = 8000)", default=8000)
 parser.add_argument("-t", "--split_ratio", type=float,
@@ -258,18 +258,18 @@ elif not grid_search:
             ConvCAEMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
                       lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
                       give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim,
-                      num_kernel_per_ws=num_kernel_per_ws,
+                      num_kernel_per_ws=num_kernel_per_ws,max_len=max_length,
                       train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
-                      attributes_X=features_matrix, att_dim=att_dim, use_transfer_block=use_transfer_block)
+                      attributes_X=features_matrix, cae_output_dim=att_dim, use_transfer_block=use_transfer_block)
         elif content_mode == 'cnn':
             ConvMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
-                   lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
+                   lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,max_len=max_length,
                    give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
                    train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
         elif content_mode == 'cae':
             # attributes dimension must be euall to u, and v vectors dimension
             CAEMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
-                  lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, att_dim=dimension,
+                  lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, cae_output_dim=dimension,
                   give_item_weight=give_item_weight,
                   train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
                   attributes_X=features_matrix)
@@ -307,7 +307,7 @@ elif not grid_search:
             Raw_att_CNN_concat(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
                       lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
                       give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim,
-                      num_kernel_per_ws=num_kernel_per_ws,
+                      num_kernel_per_ws=num_kernel_per_ws,max_len=max_length,
                       train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
                       attributes_X=features_matrix, use_CAE=False)
 
