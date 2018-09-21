@@ -38,6 +38,7 @@ class Data_Factory():
         D_all = pickl.load(open(path + "/document.all", "rb"))
         print "Load preprocessed document data - %s" % (path + "/document.all")
         return D_all
+
     def save(self, path, R, D_all):
         if not os.path.exists(path):
             os.makedirs(path)
@@ -129,12 +130,17 @@ class Data_Factory():
                 labels_ids = []
                 for line in reader:
                     if first_line:
-                        labels = ['pages', 'year', 'type_NaN', 'type_article',
-                                  'type_book', 'type_booklet', 'type_electronic', 'type_inbook',
-                                  'type_incollection', 'type_inproceedings', 'type_manual',
-                                  'type_mastersthesis', 'type_misc', 'type_phdthesis', 'type_proceedings',
-                                  'type_techreport', 'type_unpublished']
-
+                        # labels = ['pages', 'year', 'type_NaN', 'type_article',
+                        #           'type_book', 'type_booklet', 'type_electronic', 'type_inbook',
+                        #           'type_incollection', 'type_inproceedings', 'type_manual',
+                        #           'type_mastersthesis', 'type_misc', 'type_phdthesis', 'type_proceedings',
+                        #           'type_techreport', 'type_unpublished']
+                        labels = ['pages_norm', 'type_article', 'type_book', 'type_booklet',
+                                   'type_electronic', 'type_inbook', 'type_incollection', 'type_inproceedings',
+                                   'type_manual', 'type_mastersthesis', 'type_misc', 'type_phdthesis',
+                                   'type_proceedings', 'type_techreport', 'type_unpublished', 'type_nan',
+                                   'year_cat_null', 'year_cat_befor_90', 'year_cat_90-94', 'year_cat_95-1999',
+                                   'year_cat_2000-2004', 'year_cat_2005-2016', 'year_cat_nan']
                         for j, entry in enumerate(line):
                             if entry in labels:
                                 labels_ids.append(j)
@@ -152,18 +158,19 @@ class Data_Factory():
 
     def split_data(self, ratio, R):
         print "Randomly splitting rating data into training set (%.1f) and test set (%.1f)..." % (1 - ratio, ratio)
-        train = [] # make sure all users appear in the train set
-        for i in xrange(R.shape[0]): # for each user, add the first item that he has rated, the resulted train list size is num_users
+        train = []  # make sure all users appear in the train set
+        for i in xrange(R.shape[
+                            0]):  # for each user, add the first item that he has rated, the resulted train list size is num_users
             user_rating = R[i].nonzero()[1]
             np.random.shuffle(user_rating)
             train.append((i, user_rating[0]))
 
-        remain_item = set(xrange(R.shape[1])) - set(zip(*train)[1]) # get the item idx that haven't appeared in train.
+        remain_item = set(xrange(R.shape[1])) - set(zip(*train)[1])  # get the item idx that haven't appeared in train.
         # make sure all items appear in the train set
-        for j in remain_item: #for each item in remain_item, get the list of users who rated this item, and add the if of the first user
+        for j in remain_item:  # for each item in remain_item, get the list of users who rated this item, and add the if of the first user
             item_rating = R.tocsc().T[j].nonzero()[1]
             np.random.shuffle(item_rating)
-            train.append((item_rating[0], j))# the resulted list is of size num_user + len(remain_item)
+            train.append((item_rating[0], j))  # the resulted list is of size num_user + len(remain_item)
 
         rating_list = set(zip(R.nonzero()[0], R.nonzero()[1]))
         total_size = len(rating_list)
@@ -192,7 +199,6 @@ class Data_Factory():
         return train, valid, test
 
     # def read_split_from_file(self, ):
-
 
     def generate_train_valid_test_file_from_R(self, path, R, ratio):
         '''
@@ -373,7 +379,6 @@ class Data_Factory():
             f_valid_user_out = os.path.join(outpath, ntpath.basename(f_valid_user_in))
             self.convert_and_save(f_valid_user_in, f_valid_user_out)
 
-
         f_test_user_in = glob.glob(os.path.join(inpath, "test-fold_*-users.dat"))[0]
         f_test_user_out = os.path.join(outpath, ntpath.basename(f_test_user_in))
         self.convert_and_save(f_test_user_in, f_test_user_out)
@@ -389,17 +394,14 @@ class Data_Factory():
 
         f_test_item_in = glob.glob(os.path.join(inpath, "test-fold_*-items.dat"))[0]
         f_test_item_out = os.path.join(outpath, ntpath.basename(f_test_item_in))
-        self.convert_and_save(f_test_item_in,f_test_item_out)
-
-
-
+        self.convert_and_save(f_test_item_in, f_test_item_out)
 
     def convert_and_save(self, infile, outfile):
-        print('Reading ratings %s ...' %infile)
-        formatted_list =[]
+        print('Reading ratings %s ...' % infile)
+        formatted_list = []
         with open(infile, 'r') as f:
             with open(outfile, 'w') as of:
-                row_id = 0 # 0 base index
+                row_id = 0  # 0 base index
                 for line in f.readlines():
                     row_length = int(line.split()[0])
                     idx = map(int, line.split()[1:])
@@ -521,13 +523,14 @@ class Data_Factory():
                 item.append(i_idx)
                 rating.append(float(tmp[2]))
             else:
-                print '%s %s' % (u,i)
+                print '%s %s' % (u, i)
 
         raw_ratings.close()
 
         R = csr_matrix((rating, (user, item)))
 
-        print "Finish preprocessing rating data - # user: %d, # item: %d, # ratings: %d" % (R.shape[0], R.shape[1], R.nnz)
+        print "Finish preprocessing rating data - # user: %d, # item: %d, # ratings: %d" % (
+        R.shape[0], R.shape[1], R.nnz)
 
         # 2nd scan document file to make idx2plot dictionary according to
         # indices of items in rating matrix
@@ -550,8 +553,10 @@ class Data_Factory():
         print "\tFiltering words by TF-IDF score with max_df: %.1f, vocab_size: %d" % (_max_df, _vocab_size)
 
         # Make vocabulary by document
-        vectorizer = TfidfVectorizer(max_df=_max_df, stop_words={
-                                     'english'}, max_features=_vocab_size)
+        # vectorizer = TfidfVectorizer(max_df=_max_df, stop_words={
+        #     'english'}, max_features=_vocab_size)
+        # Make vocabulary by document
+        vectorizer = TfidfVectorizer(max_df=_max_df, max_features=_vocab_size)
         Raw_X = [map_idtoplot[i] for i in range(R.shape[1])]
         vectorizer.fit(Raw_X)
         vocab = vectorizer.vocabulary_

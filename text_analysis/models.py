@@ -37,7 +37,6 @@ config.gpu_options.per_process_gpu_memory_fraction = 0.8
 # Create a session with the above options specified.
 K.tensorflow_backend.set_session(tf.Session(config=config))
 
-
 batch_size = 128
 
 
@@ -53,7 +52,7 @@ class CNN_CAE_module():
                  init_W=None, cae_N_hidden=50, nb_features=17):
 
         ''' CNN Module'''
-        model_summary  = open('model_summary','w')
+        model_summary = open('cnn_cae_model_summary', 'w')
 
         self.max_len = max_len
         max_features = vocab_size
@@ -151,7 +150,7 @@ class CNN_CAE_module():
         model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
 
         self.model = model
-        # plot_model(model, to_file='model.png',show_shapes=True)
+        # plot_model(model, to_file='model_cnn_cae_concat2.png')
 
     def contractive_autoencoder(self, X, lam=1e-3):
         X = X.reshape(X.shape[0], -1)
@@ -188,7 +187,7 @@ class CNN_CAE_module():
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
 
-    def train(self, X_train, V, item_weight, seed, att_train,callbacks_list):
+    def train(self, X_train, V, item_weight, seed, att_train, callbacks_list):
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
         np.random.seed(seed)
         X_train = np.random.permutation(X_train)
@@ -276,6 +275,7 @@ class CNN_module():
             #     nb_filters, i, emb_dim, activation="relu"))
             model_internal.add(Conv2D(nb_filters, (i, emb_dim), activation="relu",
                                       name='conv2d_' + str(i), input_shape=(self.max_len, emb_dim, 1)))
+            model_internal.add(BatchNormalization())
             # model_internal.add(MaxPooling2D(
             #     pool_size=(self.max_len - i + 1, 1)))
             model_internal.add(MaxPooling2D(pool_size=(self.max_len - i + 1, 1), name='maxpool2d_' + str(i)))
@@ -286,12 +286,12 @@ class CNN_module():
         '''Fully Connect Layer & Dropout Layer'''
         # self.model.add_node(Dense(vanila_dimension, activation='tanh'),
         #                     name='fully_connect', inputs=['unit_' + str(i) for i in filter_lengths])
-        fully_connect = Dense(vanila_dimension, activation='tanh',
-                              name='fully_connect')(concatenate(flatten_, axis=-1))
-
+        fully_connect = Dense(vanila_dimension, name='fully_connect')(concatenate(flatten_, axis=-1))
+        batch_normalization = BatchNormalization()(fully_connect)
+        activation = Activation('tanh')(batch_normalization)
         # self.model.add_node(Dropout(dropout_rate),
         #                     name='dropout', input='fully_connect')
-        dropout = Dropout(dropout_rate, name='dropout')(fully_connect)
+        dropout = Dropout(dropout_rate, name='dropout')(activation)
         '''Projection Layer & Output Layer'''
         # self.model.add_node(Dense(projection_dimension, activation='tanh'),
         #                     name='projection', input='dropout')
@@ -303,9 +303,10 @@ class CNN_module():
         model.compile(optimizer='rmsprop', loss='mse')
         self.model = model
 
-        #write model summary
-        model_summary = open('model_summary', 'w')
+        # write model summary
+        model_summary = open('cnn_model_summary', 'w')
         self.model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
+        # plot_model(model, to_file='model_cnn.png',show_shapes=True)
 
     def load_model(self, model_path):
         self.model.load_weights(model_path)
@@ -313,7 +314,7 @@ class CNN_module():
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
 
-    def train(self, X_train, V, item_weight, seed,callbacks_list):
+    def train(self, X_train, V, item_weight, seed, callbacks_list):
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
         np.random.seed(seed)
         X_train = np.random.permutation(X_train)
@@ -321,7 +322,6 @@ class CNN_module():
         V = np.random.permutation(V)
         np.random.seed(seed)
         item_weight = np.random.permutation(item_weight)
-
         print("Train...CNN module")
         history = self.model.fit(X_train, V,
                                  verbose=0, batch_size=self.batch_size, epochs=self.nb_epoch,
@@ -350,6 +350,7 @@ class CAE_module():
     nb_epoch = 5
     # batch_size = batch_size
     batch_size = 256
+
     def __init__(self, output_dimesion, cae_N_hidden=50, nb_features=17):
         projection_dimension = output_dimesion
 
@@ -387,7 +388,7 @@ class CAE_module():
         # plot_model(model, to_file='model.png')
 
         self.model = model
-        model_summary = open('model_summary', 'w')
+        model_summary = open('cae_model_summary', 'w')
         self.model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
         # plot_model(model, to_file='model_cae.png',show_shapes=True)
 
@@ -426,8 +427,7 @@ class CAE_module():
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
 
-
-    def train(self, V, item_weight, seed, att_train,callbacks_list):
+    def train(self,att_train, V, item_weight, seed,  callbacks_list):
         np.random.seed(seed)
         V = np.random.permutation(V)
 
@@ -462,7 +462,7 @@ class CNN_CAE_transfer_module():
                  init_W=None, cae_N_hidden=50, nb_features=17):
 
         ''' CNN Module'''
-        model_summary  = open('model_summary','w')
+        model_summary = open('cnn_cae_transfer_model_summary', 'w')
         self.max_len = max_len
         max_features = vocab_size
         vanila_dimension = 200
@@ -511,7 +511,7 @@ class CNN_CAE_transfer_module():
         # cae_N_hidden = 50
 
         att_input = Input(shape=(N,), name='cae_input')
-        encoded = Dense(cae_N_hidden, activation='sigmoid', name='encoded')(att_input)
+        encoded = Dense(cae_N_hidden, activation='tanh', name='encoded')(att_input)
         att_output = Dense(N, activation='linear', name='cae_output')(encoded)
 
         # model = Model(input=att_input, output=att_output)
@@ -535,7 +535,7 @@ class CNN_CAE_transfer_module():
         #              " must equal the number of filters (kernal) of the conv. layer (--num_kernel_per_ws)")
         # combine the outputs of boths modules
         model_internal = Sequential(name='Transfer_ResBlock')
-        model_internal.add(Conv1D( cae_N_hidden/2, 1, activation="relu",
+        model_internal.add(Conv1D(cae_N_hidden / 2, 1, activation="relu",
                                   name='Res_conv2d_1', input_shape=(cae_N_hidden, 1)))
         model_internal.add(Conv1D(cae_N_hidden, 1, activation="relu", name='Res_conv2d_2'))
         model_internal.add(MaxPooling1D(pool_size=cae_N_hidden, name='Res_maxpool1d'))
@@ -589,7 +589,7 @@ class CNN_CAE_transfer_module():
     def save_model(self, model_path, isoverwrite=True):
         self.model.save_weights(model_path, isoverwrite)
 
-    def train(self, X_train, V, item_weight, seed, att_train,callbacks_list):
+    def train(self, X_train, V, item_weight, seed, att_train, callbacks_list):
         X_train = sequence.pad_sequences(X_train, maxlen=self.max_len)
         np.random.seed(seed)
         X_train = np.random.permutation(X_train)
@@ -631,3 +631,59 @@ class CNN_CAE_transfer_module():
         intermediate_output = intermediate_layer_model.predict({'doc_input': X_train, 'cae_input': att_train},
                                                                )  # batch_size=2048)
         return intermediate_output
+
+
+class Stacking_NN_CNN_CAE():
+    '''
+    classdocs
+    '''
+    # More than this epoch cause easily over-fitting on our data sets
+    nb_epoch = 15
+    batch_size = batch_size
+
+    def __init__(self, input_dim,output_dimesion ,num_layers,hidden_dim, dropout_rate=0.15):
+        ''' CNN Module'''
+        model_summary = open('nn_model_summary', 'w')
+
+        # input
+        model = Sequential()
+        model.add(Dense(hidden_dim, activation='relu', input_dim=input_dim))
+        model.add(Dropout(dropout_rate))
+        for i in range(1,num_layers):
+            model.add(Dense(hidden_dim, activation='relu'))
+            model.add(Dropout(dropout_rate))
+        model.add(Dense(output_dimesion, activation='tanh', name='output_layer'))
+        model.compile(optimizer='rmsprop', loss='mse')
+        # plot_model(model, to_file='model.png')
+
+        self.model = model
+        # plot_model(model, to_file='model_cnn_cae_transfer.png',show_shapes=True)
+        model.summary(print_fn=lambda x: model_summary.write(x + '\n'))
+
+    def load_model(self, model_path):
+        self.model.load_weights(model_path)
+
+    def save_model(self, model_path, isoverwrite=True):
+        self.model.save_weights(model_path, isoverwrite)
+
+    def train(self, X_train, V, item_weight, seed, callbacks_list):
+        np.random.seed(seed)
+        X_train = np.random.permutation(X_train)
+
+        np.random.seed(seed)
+        V = np.random.permutation(V)
+
+        np.random.seed(seed)
+        item_weight = np.random.permutation(item_weight)
+
+        print("Train...stacking module")
+        history = self.model.fit(X_train, V, verbose=0, batch_size=self.batch_size, epochs=self.nb_epoch,
+                                 sample_weight=item_weight, callbacks=callbacks_list)
+
+        return history
+
+    def get_projection_layer(self, X_train):
+        # Y = self.model.predict(
+        #     {'doc_input': X_train, 'cae_input':att_train}, batch_size=len(X_train))
+        Y = self.model.predict( X_train)
+        return Y

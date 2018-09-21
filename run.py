@@ -15,10 +15,36 @@ from models import ConvCAEMF
 from models import ConvMF
 from models import CAEMF
 from models import MF
-
+from models import stacking_CNN_CAE
+from models import NN_stacking_CNN_CAE
+from models import Raw_att_CNN_concat
 from data_manager import Data_Factory
 from rec_eval.lib.evaluator import Evaluator
 from util import Logger
+
+
+def print_helper(content_type):
+    '''
+    A helper funtction that returns a longer description of the content type
+    :param content_type:
+    :return:
+    '''
+    if content_type == 'cnn_cae':
+        return 'Text and attributes'
+    elif content_type == 'cnn':
+        return 'Text'
+    elif content_type == 'cae':
+        return 'Attributes'
+    elif content_type == 'stacking':
+        return 'Stacking ensemble'
+    elif content_type == 'nn_stacking':
+        return 'NN stacking ensebmle'
+    elif content_type == 'mf':
+        return 'Vanilla matrix factorization'
+    elif content_type =='raw_att_cnn':
+        return 'FC( Raw attributes), and CNN trained separately '
+    else:
+        return 'Content mode parser failed'
 
 parser = argparse.ArgumentParser()
 
@@ -34,8 +60,8 @@ parser.add_argument("-m", "--min_rating", type=int,
 parser.add_argument("-l", "--max_length_document", type=int,
                     help="Maximum length of document of each item (default = 300)", default=300)
 parser.add_argument("--max_df", type=float,
-                    help="Threshold to ignore terms that have a document frequency higher than the given value (default = 0.5)",
-                    default=0.5)
+                    help="Threshold to ignore terms that have a document frequency higher than the given value (default = 1.0)",
+                    default=1.0)
 parser.add_argument("-s", "--vocab_size", type=int,
                     help="Size of vocabulary (default = 8000)", default=8000)
 parser.add_argument("-t", "--split_ratio", type=float,
@@ -49,7 +75,7 @@ parser.add_argument("--splits_dir", type=str,
                     help="Path to the generated folds directory")
 parser.add_argument("-a", "--aux_path", type=str, help="Path to R, D_all sets")
 parser.add_argument("--fold_num", "-f", type=int, help="The number of folds to be generated. Default is 5",
-                    choices=[5,10], required=True)
+                    choices=[5, 10], required=True)
 
 # Option for running ConvMF
 parser.add_argument("-o", "--res_dir", type=str,
@@ -71,7 +97,8 @@ parser.add_argument("-n", "--max_iter", type=int,
                     help="Value of max iteration (default: 200)", default=200)
 parser.add_argument("-w", "--num_kernel_per_ws", type=int,
                     help="Number of kernels per window size for CNN module (default: 100)", default=100)
-parser.add_argument("--content_mode", type=str, choices=['cnn', 'cnn_cae', 'cae', 'mf'],
+parser.add_argument("--content_mode", type=str,
+                    choices=['cnn', 'cnn_cae', 'cae', 'mf', 'stacking', 'nn_stacking','maria','raw_att_cnn'],
                     help="Content to be used, CNN: textual content, CAE: auxiliary item features", default='cnn')
 parser.add_argument("--join_mode", type=str, choices=['concat', 'transfer'],
                     help="Approach used to joing the outputs of CNN and CAE (default: transfer)", default='transfer')
@@ -79,7 +106,8 @@ parser.add_argument("--att_dim", type=int,
                     help="Dimension of attributes latent vector (default: 50)", default=50)
 parser.add_argument("--grid_search", type=bool,
                     help="Run grid search to tune the hyperparameters (default = False)", default=False)
-
+parser.add_argument("-lr", "--learning_rate", type=float,
+                    help="learning rate used for ensemble")
 args = parser.parse_args()
 grid_search = args.grid_search
 do_preprocess = args.do_preprocess
@@ -169,10 +197,15 @@ elif not grid_search:
                 pretrain_w2v, D_all['X_vocab'], emb_dim)
 
     # CAE params
-    if 'cae' in content_mode:
+    if 'cae' in content_mode or content_mode in ['maria','raw_att_cnn']:
         att_dim = args.att_dim
         # Read item's attributes
         labels, features_matrix = data_factory.read_attributes(os.path.join(aux_path + 'paper_attributes.tsv'))
+    # ensemble params
+    if content_mode in ['stacking','nn_stacking','maria','raw_att_cnn']:
+        if args.learning_rate is None:
+            sys.exit("Argument missing - learning rate is required")
+        lr = args.learning_rate
 
     if res_dir is None:
         sys.exit("Argument missing - res_dir is required")
@@ -186,14 +219,12 @@ elif not grid_search:
     print "\tresult path - %s" % res_dir
     print "\tdimension: %d\n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tmax_iter: %d\n" % (
         dimension, lambda_u, lambda_v, max_iter)
-    print "\tContent: %s" % (
-        'Text and attributes' if content_mode == 'cnn_cae' else
-        ('Text' if content_mode == 'cnn'
-         else ('Attributes' if content_mode == 'cae' else 'Vanilla matrix factorization')))
+    print "\tContent: %s" % ( print_helper(content_mode))
+
     if 'cnn' in content_mode:
         print "\tnum_kernel_per_ws: %d\n\tpretrained w2v data path - %s" % (num_kernel_per_ws, pretrain_w2v)
-    print('\tItem weight %s ' % ('Constant (a=1,b=0,01)' if give_item_weight == False
-                               else 'Constant (a=1,b=0,01). And f(n)'))
+    print('\tItem weight %s ' % ('Constant (a=1,b=0,01)' if not give_item_weight
+                                 else 'Constant (a=1,b=0,01). And f(n)'))
     if 'cnn_cae' in content_mode:
         print '\tJoin CNN and CAE outputs method: %s' % ('Transfer block' if use_transfer_block else 'Concatenation')
     print "==========================================================================================="
@@ -212,8 +243,6 @@ elif not grid_search:
         test_user = data_factory.read_rating(
             os.path.join(data_path, 'fold-{}'.format(f), 'test-fold_{}-users.dat'.format(f)))
 
-
-
         fold_res_dir = os.path.join(res_dir, 'fold-{}'.format(f))
         if not os.path.exists(fold_res_dir):
             os.makedirs(fold_res_dir)
@@ -223,24 +252,24 @@ elif not grid_search:
         # test_user = data_factory.read_rating(glob.glob(data_path + '/test-fold_*-users.dat')[0])
 
         print "==========================================================================================="
-        print ('Training on fold %d' %f)
+        print ('Training on fold %d' % f)
         if content_mode == 'cnn_cae':
 
             ConvCAEMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
                       lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
                       give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim,
-                      num_kernel_per_ws=num_kernel_per_ws,
+                      num_kernel_per_ws=num_kernel_per_ws,max_len=max_length,
                       train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
-                      attributes_X=features_matrix, att_dim=att_dim,use_transfer_block=use_transfer_block)
+                      attributes_X=features_matrix, cae_output_dim=att_dim, use_transfer_block=use_transfer_block)
         elif content_mode == 'cnn':
             ConvMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
-                   lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
+                   lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,max_len=max_length,
                    give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
                    train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
         elif content_mode == 'cae':
             # attributes dimension must be euall to u, and v vectors dimension
             CAEMF(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
-                  lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, att_dim=dimension,
+                  lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, cae_output_dim=dimension,
                   give_item_weight=give_item_weight,
                   train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
                   attributes_X=features_matrix)
@@ -249,6 +278,38 @@ elif not grid_search:
                lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension,
                give_item_weight=give_item_weight,
                train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
+        elif content_mode == 'stacking':
+            CNN_theta = np.loadtxt(os.path.join(data_path, 'fold-{}'.format(f), 'CNN_theta.dat'.format(f)))
+            CAE_gamma = np.loadtxt(os.path.join(data_path, 'fold-{}'.format(f), 'CAE_gamma.dat'.format(f)))
+            stacking_CNN_CAE(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
+                             lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension,
+                             give_item_weight=give_item_weight, lr=lr, CNN_theta=CNN_theta, CAE_gamma=CAE_gamma,
+                             train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user,
+                             R=R)
+        elif content_mode == 'nn_stacking':
+            CNN_theta = np.loadtxt(os.path.join(data_path, 'fold-{}'.format(f), 'CNN_theta.dat'.format(f)))
+            CAE_gamma = np.loadtxt(os.path.join(data_path, 'fold-{}'.format(f), 'CAE_gamma.dat'.format(f)))
+            NN_stacking_CNN_CAE(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
+                             lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension,
+                             give_item_weight=give_item_weight, lr=lr, CNN_theta=CNN_theta, CAE_gamma=CAE_gamma,
+                             train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user,
+                             R=R)
+        elif content_mode == 'maria':
+            CNN_theta = np.loadtxt(os.path.join(data_path, 'fold-{}'.format(f), 'CNN_theta.dat'.format(f)))
+            CAE_gamma = features_matrix
+            NN_stacking_CNN_CAE(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
+                                lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension,
+                                give_item_weight=give_item_weight, lr=lr, CNN_theta=CNN_theta, CAE_gamma=CAE_gamma,
+                                train_user=train_user, train_item=train_item, valid_user=valid_user,
+                                test_user=test_user,
+                                R=R)
+        elif content_mode == 'raw_att_cnn':
+            Raw_att_CNN_concat(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
+                      lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
+                      give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim,
+                      num_kernel_per_ws=num_kernel_per_ws,max_len=max_length,
+                      train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
+                      attributes_X=features_matrix, use_CAE=False)
 
 if grid_search:
 
@@ -265,10 +326,10 @@ if grid_search:
     give_item_weight = args.give_item_weight
 
     # Hyperparameters options
-    lambda_u_list = [0.01, 0.1,1]  # [0.001, 0.01, 0.1, 1, 10, 100, 1000]
+    lambda_u_list = [0.01, 0.1, 1]  # [0.001, 0.01, 0.1, 1, 10, 100, 1000]
     lambda_v_list = [100, 1000]  # [0.01, 0.1, 1, 10, 100, 1000, 1000, 100000]
-    confidence_mods = ['c','w']  # TODO: , 'user-dependant'] # c: constant, ud: user_dependent
-    content_mods = ['cnn_cae']#['mf','cnn_cae','cnn','cae']  # ['cnn_cae','cnn']
+    confidence_mods = ['c', 'w']  # TODO: , 'user-dependant'] # c: constant, ud: user_dependent
+    content_mods = ['cnn_cae']  # ['mf','cnn_cae','cnn','cae']  # ['cnn_cae','cnn']
     att_dims = [10, 20, 50, 100, 200]  # [10, 20, 50, 100, 200]
     join_mode = args.join_mode
     if join_mode == 'transfer':
@@ -349,7 +410,8 @@ if grid_search:
                 print "## Hyperparameters for configuration setup %d out of %d \n\tlambda_u: %.4f\n\tlambda_v: %.4f\n\tconfidence_mod: %s" \
                       % (c, num_config, lambda_u, lambda_v, ('Constant' if confidence_mod == 'c' else 'user-dependent'))
                 print "\tContent: %s" % ('Text and item attributes\n\tAttributes latent vector dim %d' % att_dim)
-                print '\tJoin CNN and CAE outputs method: %s' % ('Transfer block' if use_transfer_block else 'Concatenation')
+                print '\tJoin CNN and CAE outputs method: %s' % (
+                    'Transfer block' if use_transfer_block else 'Concatenation')
 
                 c += 1
                 # Read item's attributes
@@ -360,13 +422,14 @@ if grid_search:
                     give_item_weight = True
                 tr_eval, val_eval, te_eval = \
                     ConvCAEMF(max_iter=max_iter, res_dir=fixed_res_dir,
-                          state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
-                          lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size,
-                          init_W=init_W,
-                          give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim,
-                          num_kernel_per_ws=num_kernel_per_ws,
-                          train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
-                          attributes_X=features_matrix, att_dim=att_dim,use_transfer_block=use_transfer_block)
+                              state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
+                              lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size,
+                              init_W=init_W,
+                              give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim,
+                              num_kernel_per_ws=num_kernel_per_ws,
+                              train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user,
+                              R=R,
+                              attributes_X=features_matrix, att_dim=att_dim, use_transfer_block=use_transfer_block)
 
                 # evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
                 # if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
@@ -397,10 +460,11 @@ if grid_search:
 
             tr_eval, val_eval, te_eval = \
                 ConvMF(max_iter=max_iter, res_dir=fixed_res_dir,
-                   state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
-                   lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
-                   give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim, num_kernel_per_ws=num_kernel_per_ws,
-                   train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
+                       state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
+                       lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
+                       give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim,
+                       num_kernel_per_ws=num_kernel_per_ws,
+                       train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
             # evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
             # if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
             #     os.remove(os.path.join(fixed_res_dir, 'score.npy'))
@@ -409,7 +473,7 @@ if grid_search:
             # all_avg_results[experiment] = avg_results
             # pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
 
-            #Stor rmse
+            # Stor rmse
             all_val_rmse[experiment] = [tr_eval, val_eval, te_eval]
 
         elif content_mode == 'cae':
@@ -435,11 +499,13 @@ if grid_search:
                     give_item_weight = True
                 # attributes dimension must be equal to u, and v vectors dimension
                 tr_eval, val_eval, te_eval = CAEMF(max_iter=max_iter, res_dir=fixed_res_dir,
-                      state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
-                      lambda_u=lambda_u, lambda_v=lambda_v, dimension=att_dim, att_dim=att_dim,
-                      give_item_weight=give_item_weight,
-                      train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
-                      attributes_X=features_matrix)
+                                                   state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
+                                                   lambda_u=lambda_u, lambda_v=lambda_v, dimension=att_dim,
+                                                   att_dim=att_dim,
+                                                   give_item_weight=give_item_weight,
+                                                   train_user=train_user, train_item=train_item, valid_user=valid_user,
+                                                   test_user=test_user, R=R,
+                                                   attributes_X=features_matrix)
 
                 # evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
                 # if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
@@ -450,7 +516,7 @@ if grid_search:
                 # all_avg_results[experiment_cae] = avg_results
                 # pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
 
-                #Stor rmse
+                # Stor rmse
                 all_val_rmse[experiment_cae] = [tr_eval, val_eval, te_eval]
 
         elif content_mode == 'mf':
@@ -469,12 +535,12 @@ if grid_search:
                 give_item_weight = False
             elif confidence_mod == 'w':
                 give_item_weight = True
-            tr_eval, val_eval, te_eval =\
+            tr_eval, val_eval, te_eval = \
                 MF(max_iter=max_iter, res_dir=fixed_res_dir,
-               state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
-               lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension,
-               give_item_weight=give_item_weight,
-               train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
+                   state_log_dir=os.path.join(experiment_dir, 'fold-{}'.format(fold)),
+                   lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension,
+                   give_item_weight=give_item_weight,
+                   train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R)
 
             # evaluator = Evaluator(R.shape[0], os.path.abspath(os.path.join(fixed_res_dir, os.pardir)))
             # if os.path.exists(os.path.join(fixed_res_dir, 'score.npy')):
@@ -484,10 +550,9 @@ if grid_search:
             # all_avg_results[experiment] = avg_results
             # pickl.dump(results, open(os.path.join(experiment_dir, "metrics_matrix.dat"), "wb"))
 
-            all_val_rmse[experiment]=[tr_eval, val_eval, te_eval]
+            all_val_rmse[experiment] = [tr_eval, val_eval, te_eval]
 
     print 'Writing avg results for all sets of configuratoins to %s' % os.path.join(res_dir, 'all_avg_results_tanh.dat')
     pickl.dump(all_avg_results, open(os.path.join(res_dir, 'all_avg_results_tanh.dat'), "wb"))
     print 'Writing rmse for all sets of configuratoins to %s' % os.path.join(res_dir, 'all_rmse.dat')
     pickl.dump(all_val_rmse, open(os.path.join(res_dir, 'all_rmse.dat'), "wb"))
-
