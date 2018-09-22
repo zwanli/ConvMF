@@ -175,28 +175,30 @@ def main():
     df = df.fillna(value=values)
     df.year = df.year.astype(int)
 
-    ## plot years histogram
-    # df.year.value_counts().sort_index().plot(ax=ax, kind='bar')
-    # plt.xlabel('year', fontsize=20)
-    # plt.xticks(fontsize=5)
-    # plt.show()
     ## convert 'year' form numerical into categorical
     df['year_cat'] = convert_year_to_categorical(df)
-    # df.year_cat.value_counts().sort_index().plot(ax=ax, kind='bar')
-    # plt.show()
-
-    ''' Processing pages'''
-    df.pages.value_counts().sort_index().plot(ax=ax, kind='bar')
-    plt.xlabel('pages', fontsize=20)
+    ## plot years histogram
+    df.year.value_counts().sort_index().plot(ax=ax, kind='bar')
+    plt.xlabel('year', fontsize=20)
     plt.xticks(fontsize=5)
+    df.year_cat.value_counts().sort_index().plot(ax=ax, kind='bar')
+    plt.savefig(os.path.join(dataset_folder,'year_frequencies'),format='png')
+    plt.show()
+
+
+    # ''' Processing pages'''
+    # df.pages.value_counts().sort_index().plot(ax=ax, kind='bar')
+    # plt.xlabel('pages', fontsize=20)
+    # plt.xticks(fontsize=4)
+    # plt.savefig(os.path.join(dataset_folder,'pages_frequencies'),format='png')
     # plt.show()
     # fill NaN with mean value in order for scale to work, using mean values won't effect the scaling
     values = {'pages': df.pages.mean()}
     df = df.fillna(value=values)
-    df['pages_norm'] = min_max_scale(df)
+    df['pages_norm'] = min_max_scale(df[['pages']])
     # replace nan values with zeros
     df.loc[df.pages == df.pages.mean(), 'pages_norm'] = 0
-
+    correlation(df)
 
 
     ''' Select columns to bel used in training the model later'''
@@ -219,5 +221,8 @@ def main():
     df.to_csv(paper_info_outfile, sep='\t', na_rep='')
     # proccess_paper_info(paper_info_path, paper_info_outfile, items_id =items_id, paper_count=paper_count)
     correlation(df)
+
+    # get duplicates
+    # a = pd.concat(g for _, g in df_initial.groupby('abstract') if len(g) > 1)
 if __name__ == '__main__':
      main()

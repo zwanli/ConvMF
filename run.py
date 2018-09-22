@@ -20,31 +20,9 @@ from models import NN_stacking_CNN_CAE
 from models import Raw_att_CNN_concat
 from data_manager import Data_Factory
 from rec_eval.lib.evaluator import Evaluator
-from util import Logger
+from util import Logger, print_helper
 
 
-def print_helper(content_type):
-    '''
-    A helper funtction that returns a longer description of the content type
-    :param content_type:
-    :return:
-    '''
-    if content_type == 'cnn_cae':
-        return 'Text and attributes'
-    elif content_type == 'cnn':
-        return 'Text'
-    elif content_type == 'cae':
-        return 'Attributes'
-    elif content_type == 'stacking':
-        return 'Stacking ensemble'
-    elif content_type == 'nn_stacking':
-        return 'NN stacking ensebmle'
-    elif content_type == 'mf':
-        return 'Vanilla matrix factorization'
-    elif content_type =='raw_att_cnn':
-        return 'FC( Raw attributes), and CNN trained separately '
-    else:
-        return 'Content mode parser failed'
 
 parser = argparse.ArgumentParser()
 
@@ -108,6 +86,7 @@ parser.add_argument("--grid_search", type=bool,
                     help="Run grid search to tune the hyperparameters (default = False)", default=False)
 parser.add_argument("-lr", "--learning_rate", type=float,
                     help="learning rate used for ensemble")
+
 args = parser.parse_args()
 grid_search = args.grid_search
 do_preprocess = args.do_preprocess

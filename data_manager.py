@@ -11,12 +11,12 @@ import cPickle as pickl
 import numpy as np
 import glob
 import ntpath
-
+import re
 from operator import itemgetter
 from scipy.sparse.csr import csr_matrix
 
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-
+from process_citeulike import is_number
 import random
 
 
@@ -546,20 +546,24 @@ class Data_Factory():
             if tmp[0] in itemset:
                 i = itemset[tmp[0]]
                 tmp_plot = tmp[1].split('|')
-                eachid_plot = (' '.join(tmp_plot)).split()[:max_length]
+                eachid_plot = (' '.join(tmp_plot)).split()
                 map_idtoplot[i] = ' '.join(eachid_plot)
 
-        print "\tRemoving stop words..."
+        #print "\tRemoving stop words..."
         print "\tFiltering words by TF-IDF score with max_df: %.1f, vocab_size: %d" % (_max_df, _vocab_size)
 
         # Make vocabulary by document
         # vectorizer = TfidfVectorizer(max_df=_max_df, stop_words={
         #     'english'}, max_features=_vocab_size)
         # Make vocabulary by document
-        vectorizer = TfidfVectorizer(max_df=_max_df, max_features=_vocab_size)
+        vectorizer = TfidfVectorizer(min_df=5)#, max_features=_vocab_size)
+        # Raw_X = [map_idtoplot[i] for i in range(R.shape[1])]
         Raw_X = [map_idtoplot[i] for i in range(R.shape[1])]
         vectorizer.fit(Raw_X)
         vocab = vectorizer.vocabulary_
+
+        #replace all numbers wit <num>
+        # z_vocab = [('num', j) if is_number(word) else (word, j) for word, j in vocab.items()]
         X_vocab = sorted(vocab.items(), key=itemgetter(1))
 
         # Make input for run
@@ -581,3 +585,6 @@ class Data_Factory():
         print "Finish preprocessing document data!"
 
         return R, D_all
+
+#ctr = collections.Counter([item for sublist in X_sequence for item in sublist])
+# a = [item for sublist in map_idtoplot.values() for item in sublist.split()]

@@ -39,6 +39,7 @@ def convert_abstracts(in_path, out_path,dataset='citeulike-a'):
     first_line = True
     # read raw data
     print('Reading documents ...')
+    ss=0
     with open(in_path, "r", encoding='utf-8', errors='ignore') as f:
         reader = csv.reader(f, delimiter=delimiter)
         with open(out_path,'w') as outfile:
@@ -55,11 +56,19 @@ def convert_abstracts(in_path, out_path,dataset='citeulike-a'):
                     paper = line[1]+' '+line[4]
                 sentences = sent_tokenize(paper)
                 document = []
-                sentences = [document.extend(word_tokenize(x)) for x in sentences]
+                for sent in sentences:
+                    words = word_tokenize(sent)
+                    words = ['xnumx' if is_number(s) else s for s in words]
+                    for w in words:
+                        if w == 'xnumx':
+                            ss+=1
+                    document.extend(words)
+                # sentences = [document.extend(word_tokenize(x)) for x in sentences]
 
                 #todo: check the 0 base indexing
                 outfile.write('{}::{}|\n'.format(int(doc_id), ' '.join(document)))
     print('File {} is generated. Each raw is item_id::abstract|'.format(out_path))
+    print (ss)
 
 def is_number(s):
     try:
@@ -223,7 +232,7 @@ def proccess_paper_info(path, outfile,items_id, paper_count):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir', type=str, default='/home/zaher/data/Extended_ctr/convmf',
+    parser.add_argument('--data_dir', type=str, default='/home/wanliz/data/Extended_ctr/convmf',
                         help='data directory containing input.txt')
     parser.add_argument("--dataset", "-d", type=str, default='citeulike-a',
                         help="Which dataset to use", choices=['dummy', 'citeulike-a', 'citeulike-t'])
@@ -250,9 +259,9 @@ def main():
     abstracts_outfile = os.path.join(dataset_folder, 'papers.txt')
     convert_abstracts(abstracts_path, abstracts_outfile)
 
-    paper_info_path= os.path.join(dataset_folder, 'paper_info.csv')
-    paper_info_outfile = os.path.join(dataset_folder, 'preprocessed/paper_attributes.tsv')
-    proccess_paper_info(paper_info_path, paper_info_outfile, items_id =items_id, paper_count=paper_count)
+    # paper_info_path= os.path.join(dataset_folder, 'paper_info.csv')
+    # paper_info_outfile = os.path.join(dataset_folder, 'preprocessed/paper_attributes.tsv')
+    #proccess_paper_info(paper_info_path, paper_info_outfile, items_id =items_id, paper_count=paper_count)
 
 if __name__ == '__main__':
      main()

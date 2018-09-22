@@ -60,6 +60,30 @@ def get_confidence_matrix(ratings, mode, **kwargs):
         print('Using default confidence mode, constant  ')
     return confidence_matrix
 
+
+def print_helper(content_type):
+    '''
+    A helper funtction that returns a longer description of the content type
+    :param content_type:
+    :return:
+    '''
+    if content_type == 'cnn_cae':
+        return 'Text and attributes'
+    elif content_type == 'cnn':
+        return 'Text'
+    elif content_type == 'cae':
+        return 'Attributes'
+    elif content_type == 'stacking':
+        return 'Stacking ensemble'
+    elif content_type == 'nn_stacking':
+        return 'NN stacking ensebmle'
+    elif content_type == 'mf':
+        return 'Vanilla matrix factorization'
+    elif content_type =='raw_att_cnn':
+        return 'FC( Raw attributes), and CNN trained separately '
+    else:
+        return 'Content mode parser failed'
+
 import sys
 
 class Logger(object):
