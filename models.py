@@ -150,7 +150,7 @@ def ConvCAEMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_u
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
             C_i = np.diag(alpha * R_i)
-            A = VV + V_i.T.dot(C_i-1).dot(V_i)
+            A = VV + V_i.T.dot(C_i-np.eye(len(idx_item))).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
@@ -331,7 +331,7 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
             C_i = np.diag(alpha * R_i)
-            A = VV + V_i.T.dot(C_i-1).dot(V_i)
+            A = VV + V_i.T.dot(C_i-np.eye(len(idx_item))).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
@@ -520,7 +520,7 @@ def CAEMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user,
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
             C_i = np.diag(alpha * R_i)
-            A = VV + V_i.T.dot(C_i-1).dot(V_i)
+            A = VV + V_i.T.dot(C_i-np.eye(len(idx_item))).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
@@ -864,7 +864,7 @@ def stacking_CNN_CAE(res_dir, state_log_dir, train_user, train_item, valid_user,
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
             C_i = np.diag(c_alpha * R_i)
-            A = VV + V_i.T.dot(C_i-1).dot(V_i)
+            A = VV + V_i.T.dot(C_i-np.eye(len(idx_item))).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
@@ -1042,7 +1042,7 @@ def NN_stacking_CNN_CAE(res_dir, state_log_dir, train_user, train_item, valid_us
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
             C_i = np.diag(alpha * R_i)
-            A = VV + V_i.T.dot(C_i-1).dot(V_i)
+            A = VV + V_i.T.dot(C_i-np.eye(len(idx_item))).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
@@ -1244,7 +1244,7 @@ def Raw_att_CNN_concat(res_dir, state_log_dir, train_user, train_item, valid_use
             C_i = np.diag(alpha * R_i)
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
-            A = VV + V_i.T.dot(C_i-1).dot(V_i)
+            A = VV + V_i.T.dot(C_i-np.eye(len(idx_item))).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
