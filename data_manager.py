@@ -549,7 +549,7 @@ class Data_Factory():
                 map_idtoplot[i] = ' '.join(eachid_plot)
 
         #print "\tRemoving stop words..."
-        print "\tFiltering words by TF-IDF score with max_df: %.1f, vocab_size: %d" % (_max_df, _vocab_size)
+        print "\tFiltering words by TF-IDF score with max_df: %.1f, min_df: %d, vocab_size: %d" % (_max_df, 5, _vocab_size)
 
         # Make vocabulary by document
         # vectorizer = TfidfVectorizer(max_df=_max_df, stop_words={

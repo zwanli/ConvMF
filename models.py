@@ -150,7 +150,7 @@ def ConvCAEMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_u
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
             C_i = np.diag(alpha * R_i)
-            A = VV + V_i.T.dot(C_i).dot(V_i)
+            A = VV + V_i.T.dot(C_i-1).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
@@ -331,7 +331,7 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
             C_i = np.diag(alpha * R_i)
-            A = VV + V_i.T.dot(C_i).dot(V_i)
+            A = VV + V_i.T.dot(C_i-1).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
@@ -520,7 +520,7 @@ def CAEMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user,
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
             C_i = np.diag(alpha * R_i)
-            A = VV + V_i.T.dot(C_i).dot(V_i)
+            A = VV + V_i.T.dot(C_i-1).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
@@ -633,7 +633,7 @@ def MF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user,
     # explicit setting
     # a = 1
     # b = 0.01
-    alpha =40
+
     num_user = R.shape[0]
     num_item = R.shape[1]
 
@@ -693,41 +693,37 @@ def MF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user,
         tic = time.time()
         print "%d iteration\t(patience: %d)" % (iteration, count)
 
-        ## update U
-        # VV = b * (V.T.dot(V)) + lambda_u * np.eye(dimension)
-        VV = (V.T.dot(V)) + lambda_u * np.eye(dimension)
+        VV = b * (V.T.dot(V)) + lambda_u * np.eye(dimension)
         sub_loss = np.zeros(num_user)
 
         for i in xrange(num_user):
             idx_item = train_user[0][i]
             V_i = V[idx_item]
             R_i = Train_R_I[i]
-            # A = VV + (a - b) * (V_i.T.dot(V_i))
-            # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
-            C_i = np.diag(alpha * R_i)
-            A = VV + V_i.T.dot(C_i).dot(V_i)
-            B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
+            A = VV + (a - b) * (V_i.T.dot(V_i))
+            B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
+
             U[i] = np.linalg.solve(A, B)
 
             sub_loss[i] = -0.5 * lambda_u * np.dot(U[i], U[i])
 
         loss = loss + np.sum(sub_loss)
 
-        ## update V
         sub_loss = np.zeros(num_item)
-        UU = (U.T.dot(U))
+        UU = b * (U.T.dot(U))
         for j in xrange(num_item):
             idx_user = train_item[0][j]
             U_j = U[idx_user]
             R_j = Train_R_J[j]
-            C_j = np.diag(alpha * R_j)
-            tmp_A = UU + (U_j.T.dot(C_j).dot(U_j))
+
+            tmp_A = UU + (a - b) * (U_j.T.dot(U_j))
             A = tmp_A + lambda_v * item_weight[j] * np.eye(dimension)
-            B = U_j.T.dot(C_j + np.eye(len(idx_user))).dot(R_j)
+            B = (a * U_j * (np.tile(R_j, (dimension, 1)).T)
+                 ).sum(0)
             V[j] = np.linalg.solve(A, B)
 
-            sub_loss[j] = -0.5 * np.square(R_j * C_j).sum()
-            sub_loss[j] = sub_loss[j] + np.sum(C_j * (U_j.dot(V[j])) * R_j)
+            sub_loss[j] = -0.5 * np.square(R_j * a).sum()
+            sub_loss[j] = sub_loss[j] + a * np.sum((U_j.dot(V[j])) * R_j)
             sub_loss[j] = sub_loss[j] - 0.5 * np.dot(V[j].dot(tmp_A), V[j])
 
         loss = loss + np.sum(sub_loss)
@@ -868,7 +864,7 @@ def stacking_CNN_CAE(res_dir, state_log_dir, train_user, train_item, valid_user,
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
             C_i = np.diag(c_alpha * R_i)
-            A = VV + V_i.T.dot(C_i).dot(V_i)
+            A = VV + V_i.T.dot(C_i-1).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
@@ -1046,7 +1042,7 @@ def NN_stacking_CNN_CAE(res_dir, state_log_dir, train_user, train_item, valid_us
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
             C_i = np.diag(alpha * R_i)
-            A = VV + V_i.T.dot(C_i).dot(V_i)
+            A = VV + V_i.T.dot(C_i-1).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
@@ -1248,7 +1244,7 @@ def Raw_att_CNN_concat(res_dir, state_log_dir, train_user, train_item, valid_use
             C_i = np.diag(alpha * R_i)
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
-            A = VV + V_i.T.dot(C_i).dot(V_i)
+            A = VV + V_i.T.dot(C_i-1).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
 
