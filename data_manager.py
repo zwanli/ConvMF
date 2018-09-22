@@ -508,7 +508,6 @@ class Data_Factory():
                 if u not in userset:
                     userset[u] = user_idx
                     user_idx = user_idx + 1
-
                 if (i not in itemset) and (i in tmp_id_plot):
                     itemset[i] = item_idx
                     item_idx = item_idx + 1

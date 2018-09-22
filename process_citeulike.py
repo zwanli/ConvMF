@@ -66,7 +66,7 @@ def convert_abstracts(in_path, out_path,dataset='citeulike-a'):
                 # sentences = [document.extend(word_tokenize(x)) for x in sentences]
 
                 #todo: check the 0 base indexing
-                outfile.write('{}::{}|\n'.format(int(doc_id), ' '.join(document)))
+                outfile.write('{}::{}|\n'.format(int(doc_id)-1, ' '.join(document)))
     print('File {} is generated. Each raw is item_id::abstract|'.format(out_path))
     print (ss)
 
