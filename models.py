@@ -22,7 +22,8 @@ import datetime
 
 min_iter = 15
 endure_count = 10
-
+# confidence alpha parameter
+c_alpha = 40
 
 def get_rated_items_idx_map(train_R_I):
     '''
@@ -64,7 +65,7 @@ def ConvCAEMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_u
     # explicit setting
     # a = 1
     # b = 0.01
-    alpha = 40
+
     num_user = R.shape[0]
     num_item = R.shape[1]
 
@@ -149,7 +150,7 @@ def ConvCAEMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_u
             R_i = Train_R_I[i]
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
-            C_i = np.diag(alpha * R_i)
+            C_i = np.diag(c_alpha * R_i)
             A = VV + V_i.T.dot(C_i-np.eye(len(idx_item))).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
@@ -167,7 +168,7 @@ def ConvCAEMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_u
             idx_user = train_item[0][j]
             U_j = U[idx_user]
             R_j = Train_R_J[j]
-            C_j = np.diag(alpha * R_j)
+            C_j = np.diag(c_alpha * R_j)
             if len(U_j) > 0:
                 # tmp_A = UU + (a - b) * (U_j.T.dot(U_j))
                 tmp_A = UU + (U_j.T.dot(C_j).dot(U_j))
@@ -256,7 +257,6 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
     # explicit settinggit
     a = 1
     b = 0.01
-    alpha = 40
     num_user = R.shape[0]
     num_item = R.shape[1]
     PREV_LOSS = -1e-50
@@ -330,9 +330,9 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
             R_i = Train_R_I[i]
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
-            C_i = np.diag(alpha * R_i)
+            C_i = np.diag(c_alpha * R_i)
             A = VV + V_i.T.dot(C_i-np.eye(len(idx_item))).dot(V_i)
-            B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
+            B = V_i.T.dot(C_i + np.eye(len(idx_item))).sum(1)
             U[i] = np.linalg.solve(A, B)
 
             sub_loss[i] = -0.5 * lambda_u * np.dot(U[i], U[i])
@@ -348,12 +348,12 @@ def ConvMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user
             idx_user = train_item[0][j]
             U_j = U[idx_user]
             R_j = Train_R_J[j]
-            C_j = np.diag(alpha * R_j)
+            C_j = np.diag(c_alpha * R_j)
             if len(U_j) > 0:
                 # tmp_A = UU + (a - b) * (U_j.T.dot(U_j))
                 tmp_A = UU + (U_j.T.dot(C_j).dot(U_j))
                 A = tmp_A + lambda_v * item_weight[j] * np.eye(dimension)
-                B = U_j.T.dot(C_j + np.eye(len(idx_user))).dot(R_j) + lambda_v * item_weight[j] * theta[j]
+                B = U_j.T.dot(C_j + np.eye(len(idx_user))).sum(1) + lambda_v * item_weight[j] * theta[j]
                 # B = (a * U_j * (np.tile(R_j, (dimension, 1)).T)
                 #      ).sum(0) + lambda_v * item_weight[j] * theta[j]
                 V[j] = np.linalg.solve(A, B)
@@ -447,7 +447,6 @@ def CAEMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user,
     # explicit setting
     # a = 1
     # b = 0.01
-    alpha =40
     num_user = R.shape[0]
     num_item = R.shape[1]
     num_features = attributes_X.shape[1]
@@ -519,7 +518,7 @@ def CAEMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user,
             R_i = Train_R_I[i]
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
-            C_i = np.diag(alpha * R_i)
+            C_i = np.diag(c_alpha * R_i)
             A = VV + V_i.T.dot(C_i-np.eye(len(idx_item))).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
@@ -536,7 +535,7 @@ def CAEMF(res_dir, state_log_dir, train_user, train_item, valid_user, test_user,
             idx_user = train_item[0][j]
             U_j = U[idx_user]
             R_j = Train_R_J[j]
-            C_j = np.diag(alpha * R_j)
+            C_j = np.diag(c_alpha * R_j)
             if len(U_j) > 0:
                 # tmp_A = UU + (a - b) * (U_j.T.dot(U_j))
                 tmp_A = UU + (U_j.T.dot(C_j).dot(U_j))
@@ -791,7 +790,6 @@ def stacking_CNN_CAE(res_dir, state_log_dir, train_user, train_item, valid_user,
     # b = 0.01
     num_user = R.shape[0]
     num_item = R.shape[1]
-    c_alpha = 40
     '''prepare path to store results and log'''
     if not os.path.exists(res_dir):
         os.makedirs(res_dir)
@@ -963,7 +961,6 @@ def NN_stacking_CNN_CAE(res_dir, state_log_dir, train_user, train_item, valid_us
     # explicit settinggit
     a = 1
     b = 0.01
-    alpha =40
     num_user = R.shape[0]
     num_item = R.shape[1]
     PREV_LOSS = -1e-50
@@ -1041,7 +1038,7 @@ def NN_stacking_CNN_CAE(res_dir, state_log_dir, train_user, train_item, valid_us
             R_i = Train_R_I[i]
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
-            C_i = np.diag(alpha * R_i)
+            C_i = np.diag(c_alpha * R_i)
             A = VV + V_i.T.dot(C_i-np.eye(len(idx_item))).dot(V_i)
             B = V_i.T.dot(C_i + np.eye(len(idx_item))).dot(R_i)
             U[i] = np.linalg.solve(A, B)
@@ -1058,7 +1055,7 @@ def NN_stacking_CNN_CAE(res_dir, state_log_dir, train_user, train_item, valid_us
             idx_user = train_item[0][j]
             U_j = U[idx_user]
             R_j = Train_R_J[j]
-            C_j = np.diag(alpha * R_j)
+            C_j = np.diag(c_alpha * R_j)
             if len(U_j) > 0:
                 tmp_A = UU + (U_j.T.dot(C_j).dot(U_j))
                 A = tmp_A + lambda_v * item_weight[j] * np.eye(dimension)
@@ -1151,7 +1148,6 @@ def Raw_att_CNN_concat(res_dir, state_log_dir, train_user, train_item, valid_use
     # explicit setting
     # a = 1
     # b = 0.01
-    alpha = 40
     # confidence_matrix = get_confidence_matrix(R,'user-dependant',alpha=40)
     num_user = R.shape[0]
     num_item = R.shape[1]
@@ -1241,7 +1237,7 @@ def Raw_att_CNN_concat(res_dir, state_log_dir, train_user, train_item, valid_use
             idx_item = train_user[0][i]
             V_i = V[idx_item]
             R_i = Train_R_I[i]
-            C_i = np.diag(alpha * R_i)
+            C_i = np.diag(c_alpha * R_i)
             # A = VV + (a - b) * (V_i.T.dot(V_i))
             # B = (a * V_i * (np.tile(R_i, (dimension, 1)).T)).sum(0)
             A = VV + V_i.T.dot(C_i-np.eye(len(idx_item))).dot(V_i)
@@ -1261,7 +1257,7 @@ def Raw_att_CNN_concat(res_dir, state_log_dir, train_user, train_item, valid_use
             idx_user = train_item[0][j]
             U_j = U[idx_user]
             R_j = Train_R_J[j]
-            C_j = np.diag(alpha * R_j)
+            C_j = np.diag(c_alpha * R_j)
             if len(U_j) > 0:
                 # tmp_A = UU + (a - b) * (U_j.T.dot(U_j))
                 tmp_A = UU + (U_j.T.dot(C_j).dot(U_j))

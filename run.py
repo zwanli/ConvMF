@@ -27,7 +27,7 @@ from util import Logger, print_helper
 parser = argparse.ArgumentParser()
 
 # Option for pre-processing data
-parser.add_argument("-c", "--do_preprocess", type=bool,
+parser.add_argument("-c", "--do_preprocess", action='store_true',
                     help="True or False to preprocess raw data for ConvMF (default = False)", default=False)
 parser.add_argument("-r", "--raw_rating_data_path", type=str,
                     help="Path to raw rating data. data format - user id::item id::rating")
@@ -62,9 +62,9 @@ parser.add_argument("-e", "--emb_dim", type=int,
                     help="Size of latent dimension for word vectors (default: 200)", default=200)
 parser.add_argument("-p", "--pretrain_w2v", type=str,
                     help="Path to pretrain word embedding model  to initialize word vectors")
-parser.add_argument("-g", "--give_item_weight", type=bool,
-                    help="Use item-specific weight, check Donghyun Kim '17 paper |True or False  (default = False)",
-                    default=False)
+parser.add_argument("-g", "--give_item_weight",
+                    help="Use item-specific weight, check Donghyun Kim '17 paper (default = False)",
+                    action='store_true')
 parser.add_argument("-k", "--dimension", type=int,
                     help="Dimension of users and items latent vector(default: 200)", default=200)
 parser.add_argument("-u", "--lambda_u", type=float,
@@ -79,13 +79,15 @@ parser.add_argument("--content_mode", type=str,
                     choices=['cnn', 'cnn_cae', 'cae', 'mf', 'stacking', 'nn_stacking','maria','raw_att_cnn'],
                     help="Content to be used, CNN: textual content, CAE: auxiliary item features", default='cnn')
 parser.add_argument("--join_mode", type=str, choices=['concat', 'transfer'],
-                    help="Approach used to joing the outputs of CNN and CAE (default: transfer)", default='transfer')
+                    help="Approach used to joing the outputs of CNN and CAE (default: concat)", default='concat')
 parser.add_argument("--att_dim", type=int,
                     help="Dimension of attributes latent vector (default: 50)", default=50)
-parser.add_argument("--grid_search", type=bool,
-                    help="Run grid search to tune the hyperparameters (default = False)", default=False)
+parser.add_argument("--grid_search",
+                    help="Run grid search to tune the hyperparameters (default = False)",action='store_true')
 parser.add_argument("-lr", "--learning_rate", type=float,
                     help="learning rate used for ensemble")
+parser.add_argument("--use_CAE",
+                    help="Use CAE in the CNN||CAE model instead of CNN||FC (default = False)",action='store_true')
 
 args = parser.parse_args()
 grid_search = args.grid_search
@@ -283,12 +285,13 @@ elif not grid_search:
                                 test_user=test_user,
                                 R=R)
         elif content_mode == 'raw_att_cnn':
+            use_CAE = args.use_CAE
             Raw_att_CNN_concat(max_iter=max_iter, res_dir=fold_res_dir, state_log_dir=fold_res_dir,
                       lambda_u=lambda_u, lambda_v=lambda_v, dimension=dimension, vocab_size=vocab_size, init_W=init_W,
                       give_item_weight=give_item_weight, CNN_X=CNN_X, emb_dim=emb_dim,
                       num_kernel_per_ws=num_kernel_per_ws,max_len=max_length,
                       train_user=train_user, train_item=train_item, valid_user=valid_user, test_user=test_user, R=R,
-                      attributes_X=features_matrix, use_CAE=False)
+                      attributes_X=features_matrix, use_CAE=use_CAE)
 
 if grid_search:
 
